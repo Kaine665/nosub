@@ -49,6 +49,7 @@ describe('SettingsRepository.load', () => {
         showTranslatedCaption: true,
         targetLanguage: 'en',
         translationLanguage: 'ja',
+        interfaceLanguage: 'en',
       },
       vocabulary: [],
       schemaVersion: 1,
@@ -117,6 +118,7 @@ describe('SettingsRepository.save', () => {
       showTranslatedCaption: false,
       targetLanguage: 'en',
       translationLanguage: 'zh-CN',
+      interfaceLanguage: 'auto',
     });
     expect(fake.store['nosub-settings']).toBeDefined();
     expect((fake.store['nosub-settings'] as { settings: { showTargetCaption: boolean } }).settings.showTargetCaption).toBe(true);
@@ -132,6 +134,7 @@ describe('SettingsRepository.save', () => {
       showTranslatedCaption: true,
       targetLanguage: 'en',
       translationLanguage: 'ko',
+      interfaceLanguage: 'zh_CN' as const,
     };
     await repo.save(saved);
     const loaded = await repo.load();

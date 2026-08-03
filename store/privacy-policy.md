@@ -1,6 +1,6 @@
 # Privacy Policy for nosub
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-08-03
 
 ## Data Collection
 
@@ -15,6 +15,7 @@ nosub does **not** collect, store, or transmit any personally identifiable infor
 
 - **Dictionary lookups**: When you click a word, nosub queries `api.dictionaryapi.dev` (Free Dictionary API) to retrieve definitions. Only the word you clicked is sent. No user identity, browsing history, or other context is transmitted.
 - **Google Translate** (optional): If translation is configured, subtitle text may be sent to Google's translation service. Only the text to translate is sent.
+- **Tatoeba**: When you look up a word, nosub may send that word to Tatoeba to retrieve example sentences. No user identity, browsing history, or video context is sent.
 
 ### What nosub does NOT do:
 
@@ -31,9 +32,11 @@ All data (preferences) is stored locally on your device and is automatically rem
 ## Permissions
 
 - `storage`: Required to save your preferences locally
+- `activeTab`: Used only after you click the NoSub toolbar icon, so the popup can identify and reload the current YouTube tab when you enable or pause NoSub
 - `https://www.youtube.com/*`: Required to function on YouTube video pages
 - `https://api.dictionaryapi.dev/*`: Required for dictionary lookups
 - `https://translate.googleapis.com/*`: Required for translation features
+- `https://tatoeba.org/*`: Required to retrieve example sentences for word lookups
 
 ## Changes
 

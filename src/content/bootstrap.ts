@@ -60,11 +60,16 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
     // 清理旧的(防御性)
     stopController();
 
+    const saved = await settings.load();
+    if (!saved.enabled) {
+      log.info('extension disabled in settings');
+      return;
+    }
+
     const controller = new SessionController(player, captions);
     runtime.controller = controller;
 
     // 加载持久化设置并应用
-    const saved = await settings.load();
     controller.updateSettings(saved);
 
     // 循环引擎:订阅 controller 的意图,在进入 repeat 时 startLoop

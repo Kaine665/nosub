@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NoSub Settings</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+    <main class="shell">
+      <header class="hero">
+        <div class="logo">N</div>
+        <div><div class="eyebrow">NOSUB</div><h1 data-copy="title">Make every sentence count.</h1><p data-copy="subtitle">Shape your focused-listening experience for YouTube.</p></div>
+        <div class="save-state" id="save-state" data-copy="saved">Saved</div>
+      </header>
+
+      <section class="card lead-card">
+        <div><h2 data-copy="extension">NoSub on YouTube</h2><p data-copy="extensionHelp">Show the focused-listening controls on supported YouTube videos.</p></div>
+        <label class="switch"><input id="enabled" type="checkbox" /><span></span></label>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <div class="section-icon lavender">Aa</div><h2 data-copy="language">Language</h2>
+          <label><span data-copy="interfaceLanguage">Interface language</span><select id="interfaceLanguage"><option value="auto" data-copy="auto">Auto (browser)</option><option value="en">English</option><option value="zh_CN">简体中文</option></select></label>
+          <label><span data-copy="captionLanguage">Preferred caption language</span><select id="targetLanguage"><option value="en" data-copy="englishAny">English (any)</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option></select></label>
+          <label><span data-copy="translationLanguage">Translate captions to</span><select id="translationLanguage"><option value="off" data-copy="off">Off</option><option value="zh-CN">简体中文</option><option value="es">Español</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="pt">Português</option><option value="ar">العربية</option></select></label>
+        </section>
+
+        <section class="card">
+          <div class="section-icon blue">◐</div><h2 data-copy="session">Listening session</h2>
+          <label><span data-copy="startingView">Starting subtitle view</span><select id="startingView"><option value="hidden" data-copy="hidden">Hidden — listen first</option><option value="original" data-copy="original">Original captions</option><option value="translated" data-copy="translated">Original + translation</option></select></label>
+          <div class="tip"><span>⌨</span><p><strong data-copy="shortcuts">Keyboard flow</strong><br/><span data-copy="shortcutHelp">A repeat · S captions · D next · E speed</span></p></div>
+        </section>
+
+        <section class="card wide">
+          <div class="section-icon mint">✓</div><h2 data-copy="privacy">Privacy & online services</h2>
+          <p class="body-copy" data-copy="privacyText">Settings and learning state stay in Chrome local storage. Definitions, translations, pronunciation audio, and example sentences are requested only when you use those features. No browsing history is sold or used for advertising.</p>
+          <div class="service-row"><span><strong data-copy="services">Connected services</strong><small>Dictionary API · Google Translate · Tatoeba</small></span><span class="pill" data-copy="onDemand">On demand</span></div>
+        </section>
+      </div>
+      <footer><span>NoSub v0.2.0</span><span data-copy="reloadHint">Changes apply to newly opened or reloaded YouTube pages.</span></footer>
+    </main>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

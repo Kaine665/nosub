@@ -37,7 +37,7 @@ export class ListeningUI {
   constructor(opts: ListeningUIOptions) {
     this.shadow = opts.shadow;
     this.controller = opts.controller;
-    this.popup = new WordPopup(dictionary);
+    this.popup = new WordPopup(dictionary, opts.controller.getState().interfaceLanguage ?? 'en');
 
     this.shadow.innerHTML = '';
     const style = document.createElement('style');
@@ -81,6 +81,7 @@ export class ListeningUI {
       revealLevel: state.revealLevel,
       isRepeating: state.isRepeating,
       translationAvailable: state.translationAvailable,
+      locale: state.interfaceLanguage,
     });
 
     const barHtml = renderControlBar({
@@ -89,6 +90,7 @@ export class ListeningUI {
       status: state.status,
       playbackRate: state.playbackRate,
       errorMessage: state.errorMessage,
+      locale: state.interfaceLanguage,
     });
 
     this.root.innerHTML = cueHtml + barHtml;

@@ -8,30 +8,35 @@ import pkg from './package.json' with { type: 'json' };
  */
 export default defineManifest({
   manifest_version: 3,
-  name: 'nosub',
+  name: '__MSG_appName__',
   version: pkg.version,
-  description: pkg.description,
+  description: '__MSG_appDescription__',
+  default_locale: 'en',
   // 图标后续补,1.0 骨架先不带(Chrome 会用默认)
   icons: {
-    16: 'public/icon16.png',
-    48: 'public/icon48.png',
-    128: 'public/icon128.png',
+    16: 'icon16.png',
+    48: 'icon48.png',
+    128: 'icon128.png',
   },
   action: {
-    default_title: 'nosub',
+    default_title: '__MSG_actionTitle__',
+    default_popup: 'src/popup/popup.html',
     default_icon: {
-      16: 'public/icon16.png',
-      48: 'public/icon48.png',
-      128: 'public/icon128.png',
+      16: 'icon16.png',
+      48: 'icon48.png',
+      128: 'icon128.png',
     },
   },
-  permissions: ['storage'],
+  options_ui: {
+    page: 'src/options/options.html',
+    open_in_tab: true,
+  },
+  permissions: ['storage', 'activeTab'],
   host_permissions: [
     'https://www.youtube.com/*',
     'https://api.dictionaryapi.dev/*',
     'https://translate.googleapis.com/*',
     'https://tatoeba.org/*',
-    'https://translate.googleapis.com/*',
   ],
   content_scripts: [
     {

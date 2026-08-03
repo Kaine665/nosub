@@ -8,3 +8,6 @@ coverage/
 *-tmp.json
 public/dict.json
 src/assistance/dict.json
+video/.deps/
+video/output/*.mp4
+video/output/*.wav

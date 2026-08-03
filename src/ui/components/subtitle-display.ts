@@ -6,12 +6,14 @@
 import type { Cue } from '../../shared/types.js';
 import type { RevealLevel } from '../../content/session-controller.js';
 import { escapeHtml, escapeAttr } from '../../shared/html-utils.js';
+import { t, type AppLocale } from '../../shared/i18n.js';
 
 export interface SubtitleDisplayProps {
   cue?: Cue;
   revealLevel: RevealLevel;
   isRepeating: boolean;
   translationAvailable: boolean;
+  locale?: AppLocale;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface SubtitleDisplayProps {
  * @returns HTML 字符串, 无字幕时返回 ''。
  */
 export function renderSubtitle(props: SubtitleDisplayProps): string {
-  const { cue, revealLevel, isRepeating, translationAvailable } = props;
+  const { cue, revealLevel, isRepeating, translationAvailable, locale = 'en' } = props;
   const hasCue = !!cue;
 
   // 挡位 0 + normal: 不显示
@@ -41,10 +43,10 @@ export function renderSubtitle(props: SubtitleDisplayProps): string {
       html += `<div class="nosub-cue-line translated">${escapeHtml(cue!.translatedText!)}</div>`;
     } else {
       const msg = cue!.translationFailed
-        ? '暂无翻译'
+        ? t('translationUnavailable', locale)
         : translationAvailable
-          ? '翻译加载中…'
-          : '翻译未配置';
+          ? t('translationLoading', locale)
+          : t('translationNotConfigured', locale);
       html += `<div class="nosub-cue-line translated nosub-translation-placeholder">${msg}</div>`;
     }
   }

@@ -10,6 +10,7 @@ import { DictionaryApiProvider } from '../../assistance/providers/dictionary-api
 import { GoogleCnProvider } from '../../assistance/providers/google-cn-provider.js';
 import type { DefinitionProvider, DefinitionEntry } from '../../assistance/definition-provider.js';
 import { escapeHtml } from '../../shared/html-utils.js';
+import { t, type AppLocale } from '../../shared/i18n.js';
 
 const CARD = { width: 380 };
 const GAP_ABOVE_CUE = 10; // 卡片底边与字幕顶边的间距
@@ -48,8 +49,8 @@ function trim(text: string, max = 100): string {
   return (breakAt > max * 0.5 ? slice.slice(0, breakAt) : slice) + '…';
 }
 
-function posLabelText(pos: string): string {
-  return POS_CN[pos] || pos;
+function posLabelText(pos: string, locale: AppLocale): string {
+  return locale === 'zh_CN' ? (POS_CN[pos] || pos) : pos;
 }
 
 function coreMeaning(def: string): string {
@@ -91,15 +92,13 @@ export class WordPopup {
   private onEsc: ((ev: KeyboardEvent) => void) | null = null;
   /** 递增以作废进行中的异步查词, 防止快切单词写错卡片 */
   private lookupGen = 0;
+  private locale: AppLocale;
 
-  constructor(dict: DictionaryService) {
+  constructor(dict: DictionaryService, locale: AppLocale = 'en') {
     this.dict = dict;
+    this.locale = locale;
     // 用浏览器 UI 语言(不受 YouTube 页面 lang 属性影响)
-    const lang = (typeof chrome !== 'undefined' && chrome.i18n
-      ? chrome.i18n.getUILanguage()
-      : (typeof navigator !== 'undefined' ? navigator.language : 'en')
-    ).toLowerCase();
-    this.langProvider = lang.startsWith('zh') ? this.cnProvider : this.enProvider;
+    this.langProvider = locale === 'zh_CN' ? this.cnProvider : this.enProvider;
   }
 
   get isOpen(): boolean {
@@ -282,7 +281,7 @@ export class WordPopup {
         <button data-close class="nc-close" type="button">×</button>
       </div>
       <div data-card-body style="padding:14px 18px 16px;font-size:14px;line-height:1.5;max-height:360px;overflow-y:auto;flex:1 1 auto;min-height:0;">
-        <div style="display:flex;align-items:center;gap:10px;color:rgba(255,255,255,0.35);"><span class="nc-spin"></span>查询中…</div>
+        <div style="display:flex;align-items:center;gap:10px;color:rgba(255,255,255,0.35);"><span class="nc-spin"></span>${t('lookingUp', this.locale)}</div>
       </div>`;
     el.querySelector('[data-close]')!.addEventListener('click', e => { e.stopPropagation(); this.dismiss(); });
     this.onDocClick = (ev: MouseEvent) => {
@@ -324,7 +323,7 @@ export class WordPopup {
 
     if (cueText?.trim()) {
       const cue = trim(cueText.trim(), 56);
-      p.push(`<div style="font-size:11px;color:rgba(255,255,255,0.28);line-height:1.4;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:6px;">语境 · ${escapeHtml(cue)}</div>`);
+      p.push(`<div style="font-size:11px;color:rgba(255,255,255,0.28);line-height:1.4;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:6px;">${t('context', this.locale)} · ${escapeHtml(cue)}</div>`);
     }
 
     if (primary.length) {
@@ -332,7 +331,7 @@ export class WordPopup {
         const border = i ? 'border-top:1px solid rgba(255,255,255,0.05);' : '';
         const size = '13.5px';
         const color = 'rgba(255,255,255,0.85)';
-        const pos = posLabelText(e.partOfSpeech);
+        const pos = posLabelText(e.partOfSpeech, this.locale);
         p.push(`<div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;${border}">
           ${pos ? `<span class="nc-pos">${escapeHtml(pos)}</span>` : ''}
           <span style="color:${color};font-size:${size};line-height:1.45;">${escapeHtml(trim(e.definition, i === 0 ? 100 : 80))}</span>
@@ -344,7 +343,7 @@ export class WordPopup {
     for (const e of (enEntries ?? [])) if (e.example && !dictExs.includes(e.example)) dictExs.push(e.example);
     const allExs = [...dictExs, ...tatoeba].slice(0, MAX_EXAMPLES);
     if (allExs.length) {
-      p.push(`<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.28);letter-spacing:0.6px;margin:10px 0 4px;">例句</div>`);
+      p.push(`<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.28);letter-spacing:0.6px;margin:10px 0 4px;">${t('examples', this.locale)}</div>`);
       for (const ex of allExs) {
         p.push(`<div style="font-size:12.5px;color:rgba(255,255,255,0.48);line-height:1.5;padding:6px 0 6px 10px;border-left:2px solid rgba(110,198,255,0.25);">“${escapeHtml(ex)}”</div>`);
       }
@@ -372,9 +371,9 @@ export class WordPopup {
       </span>`;
 
     const parts: string[] = [];
-    if (uk || auUK) parts.push(row('UK', uk, auUK, '英式发音'));
+    if (uk || auUK) parts.push(row('UK', uk, auUK, t('britishPronunciation', this.locale)));
     // 有美音音频, 或音标与英式不同时显示 US（音标相同也因音频不同而显示）
-    if (auUS || (us && us !== uk)) parts.push(row('US', us || uk, auUS, '美式发音'));
+    if (auUS || (us && us !== uk)) parts.push(row('US', us || uk, auUS, t('americanPronunciation', this.locale)));
 
     slot.innerHTML = parts.join('<span style="width:1px;height:12px;background:rgba(255,255,255,0.1);margin:0 2px;"></span>');
     slot.style.display = 'flex';
@@ -394,9 +393,9 @@ export class WordPopup {
   }
 
   private flashAudioError(btn: HTMLElement): void {
-    const prev = btn.getAttribute('title') || '发音';
+    const prev = btn.getAttribute('title') || t('pronunciation', this.locale);
     btn.classList.add('err');
-    btn.setAttribute('title', '播放失败');
+    btn.setAttribute('title', t('playbackFailed', this.locale));
     window.setTimeout(() => {
       btn.classList.remove('err');
       btn.setAttribute('title', prev);
@@ -406,7 +405,10 @@ export class WordPopup {
   private async playPronunciation(url: string, btn?: HTMLElement): Promise<void> {
     try {
       const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!resp.ok) { btn && this.flashAudioError(btn); return; }
+      if (!resp.ok) {
+        if (btn) this.flashAudioError(btn);
+        return;
+      }
 
       const blob = await resp.blob();
       if (this.audio) this.audio.pause();
@@ -415,11 +417,11 @@ export class WordPopup {
       this.audio = new Audio(this.blobUrl);
       await this.audio.play();
     } catch {
-      btn && this.flashAudioError(btn);
+      if (btn) this.flashAudioError(btn);
     }
   }
 
   private renderEmpty(): string {
-    return '<span style="color:rgba(255,255,255,0.28);font-style:italic;">未找到释义</span>';
+    return `<span style="color:rgba(255,255,255,0.28);font-style:italic;">${t('noDefinition', this.locale)}</span>`;
   }
 }

@@ -34,6 +34,7 @@ import type { Scheduler } from '../playback/playback-engine.js';
 import { rafScheduler } from '../playback/playback-engine.js';
 import { TranslationService } from '../assistance/translation-service.js';
 import { GoogleTranslateProvider } from '../assistance/providers/google-translate-provider.js';
+import { resolveLocale, t, type AppLocale } from '../shared/i18n.js';
 
 const log = logger.createLogger('controller');
 
@@ -55,6 +56,7 @@ export interface ViewState {
   translationAvailable: boolean;
   /** 当前播放速率 */
   playbackRate: number;
+  interfaceLanguage: AppLocale;
   errorMessage?: string;
 }
 
@@ -80,6 +82,7 @@ export class SessionController {
     revealLevel: 0,
     translationAvailable: false,
     playbackRate: 1,
+    interfaceLanguage: 'en',
   };
 
   constructor(
@@ -102,11 +105,12 @@ export class SessionController {
   /** 初始化:加载字幕轨道 */
   async init(videoId: string): Promise<void> {
     log.info('init: videoId', videoId);
-    this.emit({ status: 'loading', isRepeating: false, revealLevel: 0, translationAvailable: this.translation.hasProvider(), playbackRate: this.player.getPlaybackRate() });
+    const locale = resolveLocale(this.settings.interfaceLanguage);
+    this.emit({ status: 'loading', isRepeating: false, revealLevel: 0, translationAvailable: this.isTranslationAvailable(), playbackRate: this.player.getPlaybackRate(), interfaceLanguage: locale });
 
     if (!this.captions.isAvailable()) {
       log.warn('init: captions.isAvailable() 返回 false → unsupported');
-      this.emit({ status: 'unsupported', isRepeating: false, revealLevel: 0, translationAvailable: false, playbackRate: 1, errorMessage: '此视频无可用字幕' });
+      this.emit({ status: 'unsupported', isRepeating: false, revealLevel: 0, translationAvailable: false, playbackRate: 1, interfaceLanguage: locale, errorMessage: t('videoHasNoCaptions', locale) });
       return;
     }
 
@@ -115,10 +119,15 @@ export class SessionController {
       log.debug('init: listTracks 返回', tracks.length, '条');
       if (tracks.length === 0) {
         log.warn('init: listTracks 为空 → unsupported');
-        this.emit({ status: 'unsupported', isRepeating: false, revealLevel: 0, translationAvailable: false, playbackRate: 1, errorMessage: '此视频无可用字幕' });
+        this.emit({ status: 'unsupported', isRepeating: false, revealLevel: 0, translationAvailable: false, playbackRate: 1, interfaceLanguage: locale, errorMessage: t('videoHasNoCaptions', locale) });
         return;
       }
-      const loaded = await this.captions.loadTrack(tracks[0].id);
+      const preferred = (this.settings.targetLanguage ?? 'en').toLowerCase();
+      const selected = tracks.find((track) => track.languageCode.toLowerCase() === preferred)
+        ?? tracks.find((track) => track.languageCode.toLowerCase().startsWith(`${preferred}-`))
+        ?? tracks.find((track) => track.languageCode.toLowerCase().startsWith('en'))
+        ?? tracks[0];
+      const loaded = await this.captions.loadTrack(selected.id);
       this.track = loaded;
       this.session = createSession(videoId, loaded.id, loaded.cues);
       log.info('init: 就绪, cue 数', loaded.cues.length);
@@ -126,7 +135,7 @@ export class SessionController {
       this.emit(this.deriveState());
     } catch (e) {
       log.error('init: 加载失败', (e as Error).message);
-      this.emit({ status: 'error', isRepeating: false, revealLevel: 0, translationAvailable: false, playbackRate: 1, errorMessage: (e as Error).message });
+      this.emit({ status: 'error', isRepeating: false, revealLevel: 0, translationAvailable: false, playbackRate: 1, interfaceLanguage: locale, errorMessage: t('captionLoadFailed', locale) });
     }
   }
 
@@ -247,8 +256,9 @@ export class SessionController {
         status: 'loading',
         isRepeating: false,
         revealLevel: this.getActiveLevel(),
-        translationAvailable: this.translation.hasProvider(),
+        translationAvailable: this.isTranslationAvailable(),
         playbackRate: this.player.getPlaybackRate(),
+        interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
       };
     }
     const activeCueId = this.session.activeCueId;
@@ -258,8 +268,9 @@ export class SessionController {
       activeCue,
       isRepeating: this.session.mode.kind === 'repeat',
       revealLevel: this.getActiveLevel(),
-      translationAvailable: this.translation.hasProvider(),
+      translationAvailable: this.isTranslationAvailable(),
       playbackRate: this.player.getPlaybackRate(),
+      interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
     };
   }
 
@@ -294,7 +305,14 @@ export class SessionController {
   /** 更新设置(T13 持久化加载时调用) */
   updateSettings(settings: Partial<UserSettings>): void {
     this.settings = { ...this.settings, ...settings };
+    this.normalLevel = this.settings.showTranslatedCaption
+      ? 2
+      : this.settings.showTargetCaption ? 1 : 0;
     this.emit(this.deriveState());
+  }
+
+  private isTranslationAvailable(): boolean {
+    return this.settings.translationLanguage !== 'off' && this.translation.hasProvider();
   }
 
   /** 销毁会话(视频/轨道变更) */
@@ -317,7 +335,7 @@ export class SessionController {
    * 当前 cue 优先,其余后台静默加载。
    */
   private prefetchTranslations(centerCueId: string): void {
-    if (!this.track) return;
+    if (!this.track || !this.isTranslationAvailable()) return;
 
     const cues = this.track.cues;
     const centerIdx = cues.findIndex((c) => c.id === centerCueId);
@@ -338,7 +356,7 @@ export class SessionController {
 
   /** 翻译单条 cue,成功/失败后如果是 active cue 则重新 emit */
   private async translateOne(cue: Cue): Promise<void> {
-    if (cue.translatedText || cue.translationFailed) return;
+    if (cue.translatedText || cue.translationFailed || !this.isTranslationAvailable()) return;
 
     try {
       const result = await this.translation.translate({

@@ -9,7 +9,7 @@ nosub 本地词典构建脚本。
     python scripts/build-dict.py
 
 产物:
-    src/assistance/dict.json  (~15MB, 包含 IPA 音标 + 释义 + 例句)
+    public/dict.json  (~15MB, 包含 IPA 音标 + 释义 + 例句)
 
 网络要求:
     从 jsDelivr CDN 下载预处理的 GCIDE JSON (~50MB 压缩, ~200MB 解压后)
@@ -28,7 +28,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 
 # ---- 配置 ----
-OUTPUT = Path(__file__).parent.parent / "src" / "assistance" / "dict.json"
+OUTPUT = Path(__file__).parent.parent / "public" / "dict.json"
 
 # 数据源: GCIDE (JSON 格式), 按优先级排列
 SOURCES = [

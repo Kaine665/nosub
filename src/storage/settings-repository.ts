@@ -66,6 +66,10 @@ export class SettingsRepository {
         typeof p.translationLanguage === 'string'
           ? p.translationLanguage
           : DEFAULT_SETTINGS.translationLanguage,
+      interfaceLanguage:
+        p.interfaceLanguage === 'en' || p.interfaceLanguage === 'zh_CN' || p.interfaceLanguage === 'auto'
+          ? p.interfaceLanguage
+          : DEFAULT_SETTINGS.interfaceLanguage,
     };
   }
 

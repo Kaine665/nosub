@@ -1,97 +1,82 @@
-# nosub — Chrome Web Store 上架清单
+# NoSub — Chrome Web Store listing
 
-## 一、打包
+## Primary listing (English)
 
-```bash
-cd workspace/nosub
-npm run build
-# 打包 dist/ 目录为 ZIP
-# Windows: 右键 dist/ → 发送到 → 压缩文件夹
-# 或: powershell Compress-Archive -Path dist/* -DestinationPath nosub.zip
-```
+### Name
 
-Chrome Web Store 开发者控制台: https://chrome.google.com/webstore/devconsole
+NoSub — Focused Listening for YouTube
 
----
+### Short description
 
-## 二、商店信息
+Master real English on YouTube with sentence repeat, subtitle reveal, translation, and instant definitions.
+
+### Detailed description
+
+NoSub turns supported YouTube videos into focused-listening sessions without interrupting the way you normally watch.
+
+**Listen one sentence at a time**
+
+- Press **A** to repeat the current sentence; press it again to move back.
+- Press **D** to leave repeat mode or move to the next sentence.
+- Press **S** to cycle through hidden captions, original captions, and translated captions.
+- Press **E** to switch between 1×, 0.8×, and 0.6× playback.
+
+**Understand what you hear**
+
+- Click a caption word for pronunciation, definitions, parts of speech, and examples.
+- Use the built-in dictionary fallback when an online definition is unavailable.
+- Translate captions into Chinese, Spanish, Japanese, Korean, French, German, Portuguese, or Arabic.
+
+**Made for international learners**
+
+- English and Simplified Chinese interface.
+- Choose the interface language independently from the translation language.
+- Set a preferred English caption track and starting subtitle view.
+- A compact toolbar popup lets you pause NoSub or open the full settings page.
+
+**Privacy by design**
+
+Settings stay in Chrome local storage. Dictionary, translation, pronunciation, and example-sentence requests are made only when those features are used. No analytics, accounts, advertising identifiers, or browsing-history collection.
+
+### Category
+
+Education
+
+## Localized listing (简体中文)
 
 ### 名称
-nosub - YouTube 英语精听助手
 
-### 简短描述 (132 字符以内)
-在 YouTube 视频上逐句循环精听英语。遮挡字幕→首字母提示→完整字幕，渐进式揭示。内置词典，点击单词即查。
+NoSub — YouTube 精听助手
+
+### 简短描述
+
+在 YouTube 上逐句循环、渐进揭示字幕、翻译和即时查词，专注练习真实英语听力。
 
 ### 详细描述
 
-**nosub** 是一款 YouTube 英语精听扩展，帮助你在真实视频中提升听力。
+NoSub 将支持的 YouTube 视频变成精听练习，同时保留自然、连续的观看体验。
 
-**核心体验：**
-- 按 **A 键**进入循环模式——当前句子反复播放，直到你听懂
-- 再按 **A** 后退到上一句，按 **D** 前进并退出循环
-- 按 **S 键**渐进揭示字幕：完全遮挡 → 首字母提示 → 完整字幕 → 双语字幕
-- 按 **E 键**调整播放速度（1× → 0.8× → 0.6×）
+- **A**：循环当前句；再次按下回到上一句
+- **D**：退出循环或前往下一句
+- **S**：在隐藏字幕、原文字幕、双语字幕之间切换
+- **E**：切换 1×、0.8×、0.6× 播放速度
+- 点击字幕中的单词查看发音、释义、词性和例句
+- 支持英文和简体中文界面，并可单独选择字幕翻译语言
+- 设置保存在 Chrome 本地；在线词典、翻译和例句只在使用相关功能时请求
 
-**单词学习：**
-- 字幕以单词级渲染，**点击任意单词**即可查看释义（音标、词性、例句）
-- 内置 10 万+ 英文词汇离线词典，无需联网
+## Assets checklist
 
-**设计理念：**
-- 不打断视频连续播放——你主动按 A 才开始精听
-- 渐进式字幕揭示——先自己听，实在听不懂再看
-- 界面嵌入视频画面内，全屏也能用
-- 与 YouTube 原生字幕完全独立，互不干扰
+- 1–5 screenshots: 1280×800 or 640×400
+- Recommended scenes: English control bar, sentence repeat, caption reveal, word card, settings page
+- Small promo tile: 440×280
+- Marquee promo tile: 1400×560 (optional)
+- YouTube promo video: record after the English UI is installed and verified
 
-**权限说明：**
-- 仅在 `youtube.com` 运行
-- `storage`：保存你的偏好设置
-- 词典 API：查询在线词典补充释义
+## Upload checklist
 
-### 分类
-- 生产力工具 (Productivity) 或 教育 (Education)
-
-### 语言
-- 中文（简体）+ English
-
----
-
-## 三、截图要求
-
-至少 1 张 1280×800 或 640×400 的截图。建议 3-5 张：
-
-1. **控制栏展示** — 视频播放中，底部 nosub 控制栏可见
-2. **字幕循环** — 按 S 开启字幕，显示单词级渲染
-3. **查词弹窗** — 点击某个单词后弹出词典
-4. **全屏模式** — 全屏下 nosub 正常工作
-5. **首字母模式** — 只显示每个单词的首字母
-
-截图中建议黑色/深色主题视频，nosub 的白色字幕会非常突出。
-
-## 四、推广图片（可选）
-
-| 尺寸 | 用途 |
-|---|---|
-| 1280×800 | 首图（商店列表） |
-| 440×280 | 小图 |
-| 920×680 | 大图 |
-| 1400×560 | 精选图 |
-
----
-
-## 五、隐私政策
-
-见 `store/privacy-policy.md`。
-
-填入开发者控制台的"隐私权政策"字段，或托管在 GitHub Pages。
-
----
-
-## 六、上架步骤
-
-1. 注册 Chrome Web Store 开发者 ($5 一次性费用)
-   → https://chrome.google.com/webstore/devconsole/register
-2. 上传 `nosub.zip`
-3. 填写商店信息（上方内容）
-4. 上传截图
-5. 填写隐私政策链接
-6. 提交审核（通常 1-3 个工作日）
+1. Run `pnpm build`.
+2. Upload `nosub-store-v0.2.0.zip`.
+3. Use the English text as the primary listing.
+4. Add the Simplified Chinese localized listing.
+5. Upload localized screenshots and the privacy-policy URL.
+6. Complete the privacy and permission disclosures before submission.

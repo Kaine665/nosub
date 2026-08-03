@@ -66,6 +66,8 @@ export interface UserSettings {
   targetLanguage?: string;
   /** 翻译语言,默认用户系统语言或 'zh-CN' */
   translationLanguage?: string;
+  /** Extension interface language. auto follows the browser UI language. */
+  interfaceLanguage: 'auto' | 'en' | 'zh_CN';
 }
 
 /**
@@ -97,6 +99,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   showTranslatedCaption: false,
   targetLanguage: 'en',
   translationLanguage: 'zh-CN',
+  interfaceLanguage: 'auto',
 };
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;

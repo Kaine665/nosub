@@ -2,7 +2,7 @@
  * DictionaryService —— 混合查词服务。
  *
  * 策略: 首次查词时 ping 在线 API, <1s 响应则用在线, 否则回退到本地词典。
- * 本地词典由 scripts/build-dict.py 生成 (src/assistance/dict.json)。
+ * 本地词典由 scripts/build-dict.py 生成 (public/dict.json)。
  * 内置 mini 词典覆盖最常用的 ~500 词, 确保离线也能用。
  */
 

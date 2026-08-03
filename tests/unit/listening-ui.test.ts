@@ -7,7 +7,7 @@ import type { ViewState } from '../../src/content/session-controller.js';
 
 function makeMockController(state: Partial<ViewState>) {
   const fullState: ViewState = {
-    playbackRate: 1, revealLevel: 0, translationAvailable: false,
+    playbackRate: 1, revealLevel: 0, translationAvailable: false, interfaceLanguage: 'en',
     ...state,
   } as ViewState;
   return {
@@ -50,10 +50,18 @@ describe('控制栏', () => {
     }
   });
 
-  it('ready 显示 S/A/E 控制项', () => {
+  it('正常播放显示 Repeat / Captions / Next / Speed', () => {
     const { shadow } = setup({ status: 'ready', isRepeating: false });
-    expect(shadow.textContent).toContain('S');
-    expect(shadow.textContent).toContain('循环');
+    expect(shadow.textContent).toContain('Repeat');
+    expect(shadow.textContent).toContain('Captions');
+    expect(shadow.textContent).toContain('Next');
+    expect(shadow.textContent).toContain('Speed');
+  });
+
+  it('循环中动态显示 Previous 和 Exit', () => {
+    const { shadow } = setup({ status: 'ready', isRepeating: true });
+    expect(shadow.textContent).toContain('Previous');
+    expect(shadow.textContent).toContain('Exit');
   });
 
   it('revealLevel=0 时 S 显示 ○', () => {
@@ -115,12 +123,20 @@ describe('字幕揭示挡位', () => {
     expect(shadow.textContent).toContain('你好世界');
   });
 
-  it('挡位 2 无翻译: 显示翻译未配置占位', () => {
+  it('挡位 2 无翻译: 英文界面显示 translation off 占位', () => {
     const { shadow } = setup({
       status: 'ready', activeCue: cue, revealLevel: 2,
       isRepeating: false, translationAvailable: false,
     });
-    expect(shadow.textContent).toContain('翻译未配置');
+    expect(shadow.textContent).toContain('Translation is off');
+  });
+
+  it('简体中文界面显示中文控制文案', () => {
+    const { shadow } = setup({ status: 'ready', isRepeating: false, interfaceLanguage: 'zh_CN' });
+    expect(shadow.textContent).toContain('重听');
+    expect(shadow.textContent).toContain('字幕');
+    expect(shadow.textContent).toContain('下一句');
+    expect(shadow.textContent).toContain('倍速');
   });
 });
 

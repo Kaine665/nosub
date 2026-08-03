@@ -8,7 +8,7 @@ export default defineConfig({
     target: 'chrome110',
     outDir: 'dist',
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: false,
   },
   server: {
     port: 5173,
