@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>nosub word card — final</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px 600px at 20% 10%, #3a2a1a 0%, transparent 55%),
+        radial-gradient(900px 500px at 80% 80%, #1a2a3a 0%, transparent 50%),
+        #0b0b10;
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px 20px;
+    }
+    .yt-fake {
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.7)),
+        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="%23181820" width="80" height="80"/><circle cx="40" cy="40" r="18" fill="%23282834"/></svg>');
+      z-index: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="yt-fake"></div>
+  <div id="card" style="position:relative;z-index:2;"></div>
+  <script>
+    const word = 'why';
+    const cue = 'understand it and you can think about this like why what can you identify';
+    const senses = [
+      { pos: '副词', def: '出于什么原因、理由或目的（疑问）' },
+      { pos: '副词', def: '出于什么原因、理由或目的（关系）' },
+      { pos: '感叹词', def: '表达愤怒、轻微惊讶或不耐烦' },
+      { pos: '名词', def: '原因；理由' },
+    ];
+    const examples = [
+      "That's the reason why I did that.",
+      'A good article will cover the who, the what, the when, the where, the why and the how.',
+    ];
+    const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const core = d => d.replace(/[（(].*?[）)]/g, '').replace(/\s+/g, '').trim();
+    const shown = [];
+    for (const s of senses) {
+      const k = core(s.def);
+      if (shown.some(x => { const xc = core(x.def); return xc === k || xc.includes(k) || k.includes(xc); })) continue;
+      shown.push(s);
+    }
+    const sensesHtml = shown.slice(0, 4).map((s, i) => `
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;${i ? 'border-top:1px solid rgba(255,255,255,0.05);' : ''}">
+        <span style="flex:0 0 auto;font-size:10px;font-weight:600;color:rgba(255,255,255,0.45);background:rgba(255,255,255,0.06);border-radius:4px;padding:2px 6px;margin-top:2px;">${s.pos}</span>
+        <span style="color:${i === 0 ? '#f0f0f0' : 'rgba(255,255,255,0.72)'};font-size:${i === 0 ? '15px' : '13.5px'};line-height:1.45;">${esc(s.def)}</span>
+      </div>`).join('');
+    const exHtml = examples.slice(0, 2).map(ex =>
+      `<div style="font-size:12.5px;color:rgba(255,255,255,0.48);line-height:1.5;padding:6px 0 6px 10px;border-left:2px solid rgba(110,198,255,0.25);">“${esc(ex)}”</div>`
+    ).join('');
+    const el = document.createElement('div');
+    Object.assign(el.style, {
+      width: '380px', background: 'rgba(18,18,24,0.96)', color: '#e8e8e8',
+      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '18px',
+      boxShadow: '0 16px 56px rgba(0,0,0,0.6)', backdropFilter: 'blur(28px)', overflow: 'hidden',
+    });
+    el.innerHTML = `
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 0;">
+        <div>
+          <div style="font-size:26px;font-weight:700;color:#fff;letter-spacing:-0.02em;line-height:1.1;">${word}</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:rgba(255,255,255,0.4);">
+            <span style="display:inline-flex;align-items:center;gap:5px;">
+              <span style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.28);">UK</span>
+              <span style="font-family:ui-monospace,monospace;color:rgba(255,255,255,0.62);">/waɪ/</span>
+              <button style="width:22px;height:22px;border-radius:50%;border:none;background:rgba(110,198,255,0.14);color:#8fd0ff;font-size:11px;">🔊</button>
+            </span>
+          </div>
+        </div>
+        <button style="width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);font-size:16px;">×</button>
+      </div>
+      <div style="padding:14px 18px 16px;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.28);line-height:1.4;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:6px;">语境 · ${esc(cue.slice(0,56))}…</div>
+        ${sensesHtml}
+        <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.28);letter-spacing:0.6px;margin:10px 0 4px;">例句</div>
+        ${exHtml}
+      </div>`;
+    document.getElementById('card').appendChild(el);
+  </script>
+</body>
+</html>

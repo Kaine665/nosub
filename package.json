@@ -1,0 +1,38 @@
+{
+  "name": "nosub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "YouTube 英语精听 Chrome 扩展",
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings=0",
+    "zip": "npm run build && cd dist && powershell Compress-Archive -Path * -DestinationPath ../nosub.zip -Force"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.28",
+    "@eslint/js": "^9.16.0",
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.16.0",
+    "globals": "^15.14.0",
+    "happy-dom": "^20.11.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

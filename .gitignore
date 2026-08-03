@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vite/
+*.local
+coverage/
+.DS_Store
+*.zip
+*-tmp.json
+public/dict.json
+src/assistance/dict.json

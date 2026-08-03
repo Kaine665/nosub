@@ -1,0 +1,67 @@
+{
+  "actions": [
+    {
+      "updateEngagementPanelAction": {
+        "content": {
+          "transcriptRenderer": {
+            "content": {
+              "transcriptSearchPanelRenderer": {
+                "body": {
+                  "transcriptSegmentListRenderer": {
+                    "initialSegments": [
+                      {
+                        "transcriptSegmentRenderer": {
+                          "startMs": "160",
+                          "endMs": "6879",
+                          "snippet": {
+                            "runs": [
+                              { "text": "Hello " },
+                              { "text": "listeners" }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "transcriptSegmentRenderer": {
+                          "startMs": "6879",
+                          "endMs": "13120",
+                          "snippet": {
+                            "runs": [
+                              { "text": "this episode" }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "transcriptSegmentRenderer": {
+                          "startMs": "13120",
+                          "endMs": "20960",
+                          "snippet": {
+                            "runs": [
+                              { "text": "  " }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "transcriptSegmentRenderer": {
+                          "startMs": "invalid",
+                          "endMs": "26080",
+                          "snippet": {
+                            "runs": [
+                              { "text": "should be filtered" }
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
