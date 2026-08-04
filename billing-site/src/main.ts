@@ -1,13 +1,14 @@
 import { initializePaddle, type Paddle } from '@paddle/paddle-js';
 import './style.css';
 
-type BillingCycle = 'month' | 'year';
+type BillingCycle = 'month' | 'quarter' | 'year';
 
 const config = {
   environment: import.meta.env.VITE_PADDLE_ENVIRONMENT,
   token: import.meta.env.VITE_PADDLE_CLIENT_TOKEN,
   prices: {
     month: import.meta.env.VITE_PADDLE_MONTHLY_PRICE_ID,
+    quarter: import.meta.env.VITE_PADDLE_QUARTERLY_PRICE_ID,
     year: import.meta.env.VITE_PADDLE_ANNUAL_PRICE_ID,
   },
 };
@@ -15,7 +16,7 @@ const config = {
 for (const [key, value] of Object.entries(config)) {
   if (!value) throw new Error(`Missing required Paddle configuration: ${key}`);
 }
-if (!config.prices.month || !config.prices.year) {
+if (!config.prices.month || !config.prices.quarter || !config.prices.year) {
   throw new Error('Missing required Paddle price IDs.');
 }
 if (config.environment !== 'sandbox' && config.environment !== 'production') {
@@ -50,7 +51,8 @@ app.innerHTML = `
         </div>
         <div class="billing-toggle" role="group" aria-label="Billing cycle">
           <button type="button" data-cycle="month" class="active">Monthly</button>
-          <button type="button" data-cycle="year">Yearly <span>Save 50%</span></button>
+          <button type="button" data-cycle="quarter">3 months <span>−20%</span></button>
+          <button type="button" data-cycle="year">Yearly <span>−47%</span></button>
         </div>
       </div>
 
@@ -146,10 +148,18 @@ async function updatePrice(): Promise<void> {
     if (!lineItem) throw new Error('Paddle returned no price.');
 
     priceElement.classList.remove('loading');
-    priceElement.innerHTML = `<strong>${lineItem.formattedTotals.total}</strong><span>/${currentCycle}</span>`;
-    billingNote.textContent = currentCycle === 'year'
-      ? 'Billed yearly. Save 50% compared with monthly billing.'
-      : 'Billed monthly. Cancel anytime.';
+    const periodLabels: Record<BillingCycle, string> = {
+      month: 'month',
+      quarter: '3 months',
+      year: 'year',
+    };
+    const billingNotes: Record<BillingCycle, string> = {
+      month: 'Billed monthly. Cancel anytime.',
+      quarter: 'Billed every 3 months. Save 20% compared with monthly billing.',
+      year: 'Billed yearly. Save 47% compared with monthly billing.',
+    };
+    priceElement.innerHTML = `<strong>${lineItem.formattedTotals.total}</strong><span>/${periodLabels[currentCycle]}</span>`;
+    billingNote.textContent = billingNotes[currentCycle];
     subscribeButton.disabled = false;
   } catch (error) {
     console.error('Unable to preview Paddle price', error);

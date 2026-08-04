@@ -40,7 +40,7 @@ h1 em { color: var(--green); font-style: normal; }
 .kicker, .plan-label { margin: 0 0 10px; color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .section-heading h2 { font-size: clamp(34px, 4.5vw, 54px); line-height: 1.08; letter-spacing: -.045em; }
 .billing-toggle { display: flex; padding: 5px; border: 1px solid #d3d5cb; border-radius: 12px; background: #e9e8e1; }
-.billing-toggle button { padding: 11px 14px; border: 0; border-radius: 8px; color: #6a736e; background: transparent; cursor: pointer; font: 700 13px/1 Inter, ui-sans-serif, system-ui, sans-serif; }
+.billing-toggle button { flex: 1; padding: 11px 14px; border: 0; border-radius: 8px; color: #6a736e; background: transparent; cursor: pointer; white-space: nowrap; font: 700 13px/1 Inter, ui-sans-serif, system-ui, sans-serif; }
 .billing-toggle button.active { color: var(--ink); background: white; box-shadow: 0 2px 7px rgba(20,33,27,.08); }
 .billing-toggle span { margin-left: 5px; color: var(--green); }
 
@@ -96,7 +96,7 @@ footer a { text-decoration: none; }
   .hero { min-height: auto; padding: 76px 0 84px; }
   .hero > p br, h1 br { display: none; }
   .section-heading { align-items: stretch; flex-direction: column; }
-  .billing-toggle { align-self: start; }
+  .billing-toggle { align-self: stretch; }
   .plans { grid-template-columns: 1fr; }
   .plan { min-height: 570px; padding: 30px 24px; }
   .shortcuts { gap: 12px; }
