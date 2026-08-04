@@ -16,10 +16,11 @@ export interface ControlBarProps {
   playbackRate: number;
   errorMessage?: string;
   locale?: AppLocale;
+  upgradeRequired?: boolean;
 }
 
 export function renderControlBar(props: ControlBarProps): string {
-  const { revealLevel, isRepeating, status, playbackRate, errorMessage, locale = 'en' } = props;
+  const { revealLevel, isRepeating, status, playbackRate, errorMessage, locale = 'en', upgradeRequired = false } = props;
   const isReady = status === 'ready';
 
   const sClass = revealLevel > 0 ? ' on' : '';
@@ -54,6 +55,7 @@ export function renderControlBar(props: ControlBarProps): string {
         </span>
         ${statusText ? `<span class="nosub-ctrl"><span class="label" title="${escapeHtml(errorMessage ?? statusText)}">${escapeHtml(statusText)}</span></span>` : ''}
       </div>
+      ${upgradeRequired ? `<button class="nosub-upgrade" data-action="open-upgrade">${t('translationIsPro', locale)} · ${t('upgrade', locale)}</button>` : ''}
       <span class="nosub-loop-indicator${isRepeating ? ' visible' : ''}">
         <span class="nosub-loop-dot"></span>${t('repeating', locale)}
         <button class="nosub-exit-btn" data-action="exit-loop">${t('exit', locale)}</button>

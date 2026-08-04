@@ -91,6 +91,7 @@ export class ListeningUI {
       playbackRate: state.playbackRate,
       errorMessage: state.errorMessage,
       locale: state.interfaceLanguage,
+      upgradeRequired: state.upgradeRequired,
     });
 
     this.root.innerHTML = cueHtml + barHtml;
@@ -153,6 +154,7 @@ export class ListeningUI {
       'next': () => c.requestNext(),
       'toggle-rate': () => c.togglePlaybackRate(),
       'exit-loop': () => c.requestNext(),
+      'open-upgrade': () => void chrome.runtime.openOptionsPage(),
     };
     for (const [action, fn] of Object.entries(map)) {
       this.root.querySelectorAll(`[data-action="${action}"]`).forEach((el) => {

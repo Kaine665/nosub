@@ -37,6 +37,7 @@ export default defineManifest({
     'https://api.dictionaryapi.dev/*',
     'https://translate.googleapis.com/*',
     'https://tatoeba.org/*',
+    'https://eyqnncnryfcnwtgupoxy.supabase.co/*',
   ],
   content_scripts: [
     {

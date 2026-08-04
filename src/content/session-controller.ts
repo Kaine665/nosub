@@ -57,6 +57,9 @@ export interface ViewState {
   /** 当前播放速率 */
   playbackRate: number;
   interfaceLanguage: AppLocale;
+  /** null while account status is loading; translation remains available until resolved. */
+  isPro?: boolean;
+  upgradeRequired?: boolean;
   errorMessage?: string;
 }
 
@@ -76,6 +79,8 @@ export class SessionController {
   /** S 键挡位: 正常和循环各记各的 */
   private normalLevel: RevealLevel = 0;
   private loopLevel: RevealLevel = 0;
+  private proAccess: boolean | null = null;
+  private upgradeRequired = false;
   private lastView: ViewState = {
     status: 'loading',
     isRepeating: false,
@@ -175,11 +180,17 @@ export class SessionController {
 
   /** 意图:S 键 — 循环挡位 0→1→2→3→0 */
   toggleReveal(): void {
-    if (this.session?.mode.kind === 'repeat') {
-      this.loopLevel = ((this.loopLevel + 1) % 3) as RevealLevel;
-    } else {
-      this.normalLevel = ((this.normalLevel + 1) % 3) as RevealLevel;
+    const repeating = this.session?.mode.kind === 'repeat';
+    const current = repeating ? this.loopLevel : this.normalLevel;
+    const next = ((current + 1) % 3) as RevealLevel;
+    if (next === 2 && this.proAccess === false) {
+      this.upgradeRequired = true;
+      this.emit(this.deriveState());
+      return;
     }
+    this.upgradeRequired = false;
+    if (repeating) this.loopLevel = next;
+    else this.normalLevel = next;
     this.emit(this.deriveState());
     // 到挡位 2 时, 预加载当前 cue 翻译
     const activeLevel = this.session?.mode.kind === 'repeat' ? this.loopLevel : this.normalLevel;
@@ -259,6 +270,8 @@ export class SessionController {
         translationAvailable: this.isTranslationAvailable(),
         playbackRate: this.player.getPlaybackRate(),
         interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
+        isPro: this.proAccess === true,
+        upgradeRequired: this.upgradeRequired,
       };
     }
     const activeCueId = this.session.activeCueId;
@@ -271,6 +284,8 @@ export class SessionController {
       translationAvailable: this.isTranslationAvailable(),
       playbackRate: this.player.getPlaybackRate(),
       interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
+      isPro: this.proAccess === true,
+      upgradeRequired: this.upgradeRequired,
     };
   }
 
@@ -308,6 +323,16 @@ export class SessionController {
     this.normalLevel = this.settings.showTranslatedCaption
       ? 2
       : this.settings.showTargetCaption ? 1 : 0;
+    this.emit(this.deriveState());
+  }
+
+  /** Apply the account entitlement loaded by the extension background. */
+  setProAccess(isPro: boolean): void {
+    this.proAccess = isPro;
+    if (!isPro) {
+      if (this.normalLevel === 2) this.normalLevel = 1;
+      if (this.loopLevel === 2) this.loopLevel = 1;
+    }
     this.emit(this.deriveState());
   }
 

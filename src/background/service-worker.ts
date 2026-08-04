@@ -6,14 +6,18 @@
  */
 
 import { logger } from '../shared/logger.js';
+import { AccountService } from '../auth/account-service.js';
+import type { AccountRequest, AccountResponse } from '../auth/types.js';
 
 const log = logger.createLogger('sw');
+const accountService = new AccountService();
 
 /** 消息类型 */
 type BackgroundRequest =
   | { type: 'translate-fetch'; url: string }
   | { type: 'dict-fetch'; url: string }
-  | { type: 'audio-fetch'; url: string };
+  | { type: 'audio-fetch'; url: string }
+  | AccountRequest;
 
 interface BackgroundResponse {
   ok: boolean;
@@ -33,7 +37,30 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 chrome.runtime.onMessage.addListener(
-  (request: BackgroundRequest, _sender, sendResponse: (resp: BackgroundResponse) => void) => {
+  (request: BackgroundRequest, _sender, sendResponse: (resp: BackgroundResponse | AccountResponse) => void) => {
+    if (request.type.startsWith('account:')) {
+      void (async () => {
+        try {
+          if (request.type === 'account:sign-in') {
+            sendResponse({ ok: true, account: await accountService.signIn(request.email, request.password) });
+          } else if (request.type === 'account:sign-up') {
+            const result = await accountService.signUp(request.email, request.password);
+            sendResponse({ ok: true, ...result });
+          } else if (request.type === 'account:get') {
+            sendResponse({ ok: true, account: await accountService.getAccount(request.refresh) });
+          } else if (request.type === 'account:sign-out') {
+            await accountService.signOut();
+            sendResponse({ ok: true, account: { user: null, isPro: false, subscription: null } });
+          } else {
+            sendResponse({ ok: true, url: await accountService.createPortalSession() });
+          }
+        } catch (error) {
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
+        }
+      })();
+      return true;
+    }
+
     if (request.type === 'translate-fetch' || request.type === 'dict-fetch') {
       log.debug('proxy fetch:', request.url.slice(0, 80));
       fetch(request.url)

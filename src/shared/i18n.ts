@@ -12,6 +12,7 @@ const messages = {
     britishPronunciation: 'British pronunciation', americanPronunciation: 'American pronunciation',
     pronunciation: 'Pronunciation', playbackFailed: 'Playback failed',
     videoHasNoCaptions: 'This video has no usable captions', captionLoadFailed: 'Unable to load captions',
+    translationIsPro: 'Translation is a Pro feature', upgrade: 'Upgrade',
   },
   zh_CN: {
     loading: '加载中…', noCaptions: '无字幕', error: '出错',
@@ -22,6 +23,7 @@ const messages = {
     britishPronunciation: '英式发音', americanPronunciation: '美式发音',
     pronunciation: '发音', playbackFailed: '播放失败',
     videoHasNoCaptions: '此视频无可用字幕', captionLoadFailed: '字幕加载失败',
+    translationIsPro: '字幕翻译是 Pro 功能', upgrade: '升级',
   },
 } as const;
 

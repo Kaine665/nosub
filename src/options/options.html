@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NoSub Settings</title>
     <link rel="stylesheet" href="./options.css" />
+    <link rel="stylesheet" href="./account.css" />
   </head>
   <body>
     <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -14,6 +15,23 @@
         <div><div class="eyebrow">NOSUB</div><h1 data-copy="title">Make every sentence count.</h1><p data-copy="subtitle">Shape your focused-listening experience for YouTube.</p></div>
         <div class="save-state" id="save-state" data-copy="saved">Saved</div>
       </header>
+
+      <section class="card account-card" id="account-card">
+        <div class="account-heading">
+          <div class="section-icon account-icon">PRO</div>
+          <div><h2 data-copy="account">Account & plan</h2><p data-copy="accountHelp">Sign in to activate Pro on this browser and manage your subscription.</p></div>
+          <span class="plan-badge" id="plan-badge">FREE</span>
+        </div>
+        <div id="signed-out">
+          <div class="auth-row"><input id="account-email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email" /><input id="account-password" type="password" autocomplete="current-password" minlength="6" placeholder="Password" aria-label="Password" /><button class="primary-button" id="sign-in" type="button" data-copy="signIn">Sign in</button><button class="secondary-button" id="sign-up" type="button" data-copy="signUp">Create account</button></div>
+          <p class="account-note" id="auth-note" data-copy="authNote">New here? Create an account, then confirm your email once.</p>
+        </div>
+        <div class="signed-in hidden" id="signed-in">
+          <div class="identity"><span class="avatar" id="avatar">N</span><span><strong id="account-email-label"></strong><small id="plan-detail"></small></span></div>
+          <div class="account-actions"><button class="primary-button" id="upgrade" type="button" data-copy="upgrade">View Pro plans</button><button class="secondary-button hidden" id="manage" type="button" data-copy="manage">Manage subscription</button><button class="text-button" id="refresh-plan" type="button" data-copy="refresh">Refresh status</button><button class="text-button" id="sign-out" type="button" data-copy="signOut">Sign out</button></div>
+        </div>
+        <p class="account-message" id="account-message" role="status"></p>
+      </section>
 
       <section class="card lead-card">
         <div><h2 data-copy="extension">NoSub on YouTube</h2><p data-copy="extensionHelp">Show the focused-listening controls on supported YouTube videos.</p></div>

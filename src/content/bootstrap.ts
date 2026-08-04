@@ -17,6 +17,7 @@ import { mountAppContainer, unmountAppContainer } from './app-container.js';
 import { ListeningUI } from '../ui/listening-ui.js';
 import { SettingsRepository } from '../storage/settings-repository.js';
 import { logger } from '../shared/logger.js';
+import type { AccountResponse } from '../auth/types.js';
 
 const log = logger.createLogger('bootstrap');
 
@@ -71,6 +72,9 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
 
     // 加载持久化设置并应用
     controller.updateSettings(saved);
+    void chrome.runtime.sendMessage({ type: 'account:get' }).then((response: AccountResponse) => {
+      if (response.ok && response.account) controller.setProAccess(response.account.isPro);
+    }).catch(() => controller.setProAccess(false));
 
     // 循环引擎:订阅 controller 的意图,在进入 repeat 时 startLoop
     const engine = new PlaybackEngine(player, {

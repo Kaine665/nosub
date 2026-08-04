@@ -12,6 +12,7 @@ const config = {
     year: import.meta.env.VITE_PADDLE_ANNUAL_PRICE_ID,
   },
 };
+const signedInEmail = new URLSearchParams(window.location.hash.slice(1)).get('email')?.trim() ?? '';
 
 for (const [key, value] of Object.entries(config)) {
   if (!value) throw new Error(`Missing required Paddle configuration: ${key}`);
@@ -123,8 +124,8 @@ app.innerHTML = `
       <div class="shortcuts" aria-label="NoSub keyboard shortcuts">
         <div><kbd>A</kbd><span>Repeat</span></div>
         <div><kbd>S</kbd><span>Reveal</span></div>
-        <div><kbd>D</kbd><span>Previous</span></div>
-        <div><kbd>E</kbd><span>Translate</span></div>
+        <div><kbd>D</kbd><span>Next</span></div>
+        <div><kbd>E</kbd><span>Speed</span></div>
       </div>
     </section>
 
@@ -175,6 +176,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-subscri
     const cycle = button.dataset.subscribe as BillingCycle;
     paddle?.Checkout.open({
       items: [{ priceId: config.prices[cycle], quantity: 1 }],
+      ...(signedInEmail ? { customer: { email: signedInEmail } } : {}),
       settings: {
         displayMode: 'overlay',
         variant: 'one-page',
