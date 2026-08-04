@@ -9,6 +9,8 @@
   },
   "scripts": {
     "dev": "vite",
+    "billing:dev": "pnpm --dir billing-site dev",
+    "billing:build": "pnpm --dir billing-site build",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
