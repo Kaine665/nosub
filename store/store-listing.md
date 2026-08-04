@@ -8,11 +8,11 @@ NoSub — Focused Listening for YouTube
 
 ### Short description
 
-Master real English on YouTube with sentence repeat, subtitle reveal, translation, and instant definitions.
+Improve your English listening with real YouTube videos.
 
 ### Detailed description
 
-NoSub turns supported YouTube videos into focused-listening sessions without interrupting the way you normally watch.
+NoSub turns every supported YouTube video into focused practice—repeat sentences, reveal captions, and learn words in context.
 
 **Listen one sentence at a time**
 
