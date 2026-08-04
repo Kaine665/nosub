@@ -47,54 +47,74 @@ app.innerHTML = `
       <div class="section-heading">
         <div>
           <p class="kicker">Simple pricing</p>
-          <h2 id="pricing-title">Start free. Upgrade when<br>you want to go deeper.</h2>
+          <h2 id="pricing-title">Choose the pace that<br>fits your practice.</h2>
         </div>
-        <div class="billing-toggle" role="group" aria-label="Billing cycle">
-          <button type="button" data-cycle="month" class="active">Monthly</button>
-          <button type="button" data-cycle="quarter">3 months <span>−20%</span></button>
-          <button type="button" data-cycle="year">Yearly <span>−47%</span></button>
-        </div>
+        <p class="pricing-intro">Every Pro plan includes the complete NoSub learning experience. Save more when you commit to consistent practice.</p>
       </div>
 
       <div class="plans">
-        <article class="plan free-plan">
+        <article class="plan monthly-plan">
           <div>
-            <p class="plan-label">For getting started</p>
-            <h3>Free</h3>
-            <p class="plan-description">The essential listening loop for any English YouTube video.</p>
-            <div class="price"><strong>$0</strong><span>forever</span></div>
+            <p class="plan-label">Flexible</p>
+            <h3>Monthly</h3>
+            <p class="plan-description">Explore every Pro feature without a long commitment.</p>
+            <div class="price loading" data-price="month"><strong>—</strong><span>Loading local price…</span></div>
+            <p class="billing-note">Renews monthly. Cancel anytime.</p>
           </div>
           <ul>
-            <li>Repeat the current subtitle</li>
-            <li>Reveal and hide subtitles</li>
-            <li>Keyboard-first controls</li>
-            <li>Word lookup while watching</li>
-          </ul>
-          <a class="button secondary" href="https://chromewebstore.google.com/detail/gjdbacmibabccgnjckmgflaomjboibji">Use NoSub free</a>
-        </article>
-
-        <article class="plan pro-plan">
-          <div class="popular">Best value</div>
-          <div>
-            <p class="plan-label">For serious learners</p>
-            <h3>NoSub Pro</h3>
-            <p class="plan-description">Build a daily practice habit with unlimited learning tools.</p>
-            <div class="price loading" id="pro-price"><strong>—</strong><span>Loading local price…</span></div>
-            <p class="billing-note" id="billing-note">Billed monthly. Cancel anytime.</p>
-          </div>
-          <ul>
-            <li>Everything in Free</li>
             <li>Unlimited instant translation</li>
             <li>Unlimited word explanations</li>
             <li>Learning history and saved words</li>
-            <li>Future Pro listening features</li>
+            <li>All future Pro listening features</li>
           </ul>
-          <button class="button primary" id="subscribe" type="button" disabled>
-            <span>Get NoSub Pro</span><span aria-hidden="true">→</span>
+          <button class="button secondary" data-subscribe="month" type="button" disabled>
+            <span>Choose monthly</span><span aria-hidden="true">→</span>
+          </button>
+        </article>
+
+        <article class="plan featured-plan">
+          <div class="popular">Most popular</div>
+          <div>
+            <p class="plan-label">Build momentum</p>
+            <h3>3 months</h3>
+            <p class="plan-description">Enough time to turn focused listening into a real habit.</p>
+            <div class="price loading" data-price="quarter"><strong>—</strong><span>Loading local price…</span></div>
+            <p class="billing-note">Save 20% compared with monthly billing.</p>
+          </div>
+          <ul>
+            <li>Unlimited instant translation</li>
+            <li>Unlimited word explanations</li>
+            <li>Learning history and saved words</li>
+            <li>All future Pro listening features</li>
+          </ul>
+          <button class="button primary" data-subscribe="quarter" type="button" disabled>
+            <span>Choose 3 months</span><span aria-hidden="true">→</span>
+          </button>
+          <p class="secure-note">Secure checkout powered by Paddle</p>
+        </article>
+
+        <article class="plan value-plan">
+          <div class="value-badge">Best value · Save 47%</div>
+          <div>
+            <p class="plan-label">Make it count</p>
+            <h3>Yearly</h3>
+            <p class="plan-description">The lowest monthly price for committed learners.</p>
+            <div class="price loading" data-price="year"><strong>—</strong><span>Loading local price…</span></div>
+            <p class="billing-note">Save 47% compared with monthly billing.</p>
+          </div>
+          <ul>
+            <li>Unlimited instant translation</li>
+            <li>Unlimited word explanations</li>
+            <li>Learning history and saved words</li>
+            <li>All future Pro listening features</li>
+          </ul>
+          <button class="button value-button" data-subscribe="year" type="button" disabled>
+            <span>Choose yearly</span><span aria-hidden="true">→</span>
           </button>
           <p class="secure-note">Secure checkout powered by Paddle</p>
         </article>
       </div>
+      <p class="free-note">Not ready for Pro? <a href="https://chromewebstore.google.com/detail/gjdbacmibabccgnjckmgflaomjboibji">Keep using NoSub Free</a> — no card required.</p>
     </section>
 
     <section class="promise shell">
@@ -121,75 +141,49 @@ app.innerHTML = `
   </main>
 `;
 
-const priceElement = document.querySelector<HTMLDivElement>('#pro-price');
-const billingNote = document.querySelector<HTMLParagraphElement>('#billing-note');
-const subscribeButton = document.querySelector<HTMLButtonElement>('#subscribe');
-const toggleButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-cycle]'));
-
 let paddle: Paddle | undefined;
-let currentCycle: BillingCycle = 'month';
 
-function setStatus(message: string): void {
-  if (!priceElement) return;
-  priceElement.classList.add('loading');
-  priceElement.innerHTML = `<strong>—</strong><span>${message}</span>`;
-}
+const periodLabels: Record<BillingCycle, string> = {
+  month: 'month',
+  quarter: '3 months',
+  year: 'year',
+};
 
-async function updatePrice(): Promise<void> {
-  if (!paddle || !priceElement || !billingNote || !subscribeButton) return;
-  setStatus('Loading local price…');
-  subscribeButton.disabled = true;
+async function updatePrice(cycle: BillingCycle): Promise<void> {
+  const priceElement = document.querySelector<HTMLDivElement>(`[data-price="${cycle}"]`);
+  const subscribeButton = document.querySelector<HTMLButtonElement>(`[data-subscribe="${cycle}"]`);
+  if (!paddle || !priceElement || !subscribeButton) return;
 
   try {
     const result = await paddle.PricePreview({
-      items: [{ priceId: config.prices[currentCycle], quantity: 1 }],
+      items: [{ priceId: config.prices[cycle], quantity: 1 }],
     });
     const lineItem = result.data.details.lineItems[0];
     if (!lineItem) throw new Error('Paddle returned no price.');
 
     priceElement.classList.remove('loading');
-    const periodLabels: Record<BillingCycle, string> = {
-      month: 'month',
-      quarter: '3 months',
-      year: 'year',
-    };
-    const billingNotes: Record<BillingCycle, string> = {
-      month: 'Billed monthly. Cancel anytime.',
-      quarter: 'Billed every 3 months. Save 20% compared with monthly billing.',
-      year: 'Billed yearly. Save 47% compared with monthly billing.',
-    };
-    priceElement.innerHTML = `<strong>${lineItem.formattedTotals.total}</strong><span>/${periodLabels[currentCycle]}</span>`;
-    billingNote.textContent = billingNotes[currentCycle];
+    priceElement.innerHTML = `<strong>${lineItem.formattedTotals.total}</strong><span>/${periodLabels[cycle]}</span>`;
     subscribeButton.disabled = false;
   } catch (error) {
     console.error('Unable to preview Paddle price', error);
-    setStatus('Price unavailable — please try again');
+    priceElement.innerHTML = '<strong>—</strong><span>Price unavailable</span>';
   }
 }
 
-function selectCycle(cycle: BillingCycle): void {
-  currentCycle = cycle;
-  for (const button of toggleButtons) {
-    button.classList.toggle('active', button.dataset.cycle === cycle);
-  }
-  void updatePrice();
-}
-
-for (const button of toggleButtons) {
-  button.addEventListener('click', () => selectCycle(button.dataset.cycle as BillingCycle));
-}
-
-subscribeButton?.addEventListener('click', () => {
-  paddle?.Checkout.open({
-    items: [{ priceId: config.prices[currentCycle], quantity: 1 }],
-    settings: {
-      displayMode: 'overlay',
-      variant: 'one-page',
-      theme: 'light',
-      successUrl: `${window.location.origin}${import.meta.env.BASE_URL}?checkout=success`,
-    },
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-subscribe]')) {
+  button.addEventListener('click', () => {
+    const cycle = button.dataset.subscribe as BillingCycle;
+    paddle?.Checkout.open({
+      items: [{ priceId: config.prices[cycle], quantity: 1 }],
+      settings: {
+        displayMode: 'overlay',
+        variant: 'one-page',
+        theme: 'light',
+        successUrl: `${window.location.origin}${import.meta.env.BASE_URL}?checkout=success`,
+      },
+    });
   });
-});
+}
 
 if (new URLSearchParams(window.location.search).get('checkout') === 'success') {
   const hero = document.querySelector<HTMLElement>('.hero');
@@ -202,10 +196,12 @@ async function start(): Promise<void> {
     token: config.token,
   });
   if (!paddle) {
-    setStatus('Checkout unavailable');
+    for (const element of document.querySelectorAll<HTMLDivElement>('[data-price]')) {
+      element.innerHTML = '<strong>—</strong><span>Checkout unavailable</span>';
+    }
     return;
   }
-  await updatePrice();
+  await Promise.all((['month', 'quarter', 'year'] as BillingCycle[]).map(updatePrice));
 }
 
 void start();
