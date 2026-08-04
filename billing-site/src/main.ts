@@ -28,7 +28,7 @@ if (!app) throw new Error('App root not found.');
 app.innerHTML = `
   <main>
     <nav class="nav shell" aria-label="Primary navigation">
-      <a class="brand" href="/" aria-label="NoSub home">
+      <a class="brand" href="./" aria-label="NoSub home">
         <span class="brand-mark" aria-hidden="true">N</span>
         <span>NoSub</span>
       </a>
@@ -107,9 +107,14 @@ app.innerHTML = `
     </section>
 
     <footer class="shell">
-      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">N</span><span>NoSub</span></a>
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">N</span><span>NoSub</span></a>
       <p>© 2026 Wuxi Gongqian Technology Co., Ltd.</p>
-      <a href="mailto:xl1469608@gmail.com">Support</a>
+      <div class="footer-links">
+        <a href="./terms.html">Terms</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="./refund.html">Refunds</a>
+        <a href="mailto:xl1469608@gmail.com">Support</a>
+      </div>
     </footer>
   </main>
 `;
