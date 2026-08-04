@@ -106,8 +106,9 @@ export class ListeningUI {
     this.root.querySelectorAll('.nosub-word').forEach((el) => {
       el.addEventListener('click', (e) => this.handleWordClick(e));
     });
-    this.root.querySelector('[data-action="exit-loop"]')
-      ?.addEventListener('click', () => this.controller.requestNext());
+
+    // 控制栏可点击 (含 exit-loop, 不再单独绑)
+    this.bindControlBar();
   }
 
   private handleWordClick(e: Event): void {
@@ -142,5 +143,24 @@ export class ListeningUI {
       this.popupCueId = null;
       this.root.querySelectorAll('.nosub-word.active').forEach((el) => el.classList.remove('active'));
     };
+  }
+
+  private bindControlBar(): void {
+    const c = this.controller;
+    const map: Record<string, () => void> = {
+      'loop-back': () => c.requestLoopBack(),
+      'toggle-reveal': () => c.toggleReveal(),
+      'next': () => c.requestNext(),
+      'toggle-rate': () => c.togglePlaybackRate(),
+      'exit-loop': () => c.requestNext(),
+    };
+    for (const [action, fn] of Object.entries(map)) {
+      this.root.querySelectorAll(`[data-action="${action}"]`).forEach((el) => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          fn();
+        });
+      });
+    }
   }
 }

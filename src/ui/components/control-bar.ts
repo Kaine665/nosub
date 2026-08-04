@@ -40,16 +40,16 @@ export function renderControlBar(props: ControlBarProps): string {
     <div class="nosub-bar">
       <span class="nosub-brand">NOSUB</span>
       <div class="nosub-ctrls">
-        <span class="nosub-ctrl">
+        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="loop-back" title="${aLabel}">
           <span class="key">A</span><span class="label">${aLabel}</span>
         </span>
-        <span class="nosub-ctrl${sClass}">
+        <span class="nosub-ctrl nosub-ctrl-clickable${sClass}" data-action="toggle-reveal" title="${t('captions', locale)}">
           <span class="key">S</span><span class="label">${t('captions', locale)} ${LEVEL_MARKS[revealLevel]}</span>
         </span>
-        <span class="nosub-ctrl">
+        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="next" title="${dLabel}">
           <span class="key">D</span><span class="label">${dLabel}</span>
         </span>
-        <span class="nosub-ctrl${rateActive ? ' on' : ''}">
+        <span class="nosub-ctrl nosub-ctrl-clickable${rateActive ? ' on' : ''}" data-action="toggle-rate" title="${t('speed', locale)}">
           <span class="key">E</span><span class="label">${t('speed', locale)}${rateText}</span>
         </span>
         ${statusText ? `<span class="nosub-ctrl"><span class="label" title="${escapeHtml(errorMessage ?? statusText)}">${escapeHtml(statusText)}</span></span>` : ''}
