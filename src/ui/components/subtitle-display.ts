@@ -42,12 +42,15 @@ export function renderSubtitle(props: SubtitleDisplayProps): string {
     if (cue!.translatedText) {
       html += `<div class="nosub-cue-line translated">${escapeHtml(cue!.translatedText!)}</div>`;
     } else {
-      const msg = cue!.translationFailed
-        ? t('translationUnavailable', locale)
-        : translationAvailable
-          ? t('translationLoading', locale)
-          : t('translationNotConfigured', locale);
-      html += `<div class="nosub-cue-line translated nosub-translation-placeholder">${msg}</div>`;
+      let msg: string;
+      if (cue!.translationFailed) {
+        msg = cue!.translationFailed!; // 直接显示具体原因: "网络超时" / "翻译过频" 等
+      } else if (translationAvailable) {
+        msg = t('translationLoading', locale);
+      } else {
+        msg = t('translationNotConfigured', locale);
+      }
+      html += `<div class="nosub-cue-line translated nosub-translation-placeholder">${escapeHtml(msg)}</div>`;
     }
   }
 

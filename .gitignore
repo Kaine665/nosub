@@ -7,8 +7,27 @@ coverage/
 .DS_Store
 *.zip
 *-tmp.json
+
+# Large dictionary data (74MB+, not for git — downloaded separately)
 public/dict.json
+public/dict-en-core.json
+public/dict-zh.json
 src/assistance/dict.json
+
+# Python cache
+scripts/__pycache__/
+
+# Temp probe / gate outputs
+scripts/_*-out.txt
+scripts/_*-report.json
+scripts/_probe-*
+
+# Spike temp data (keep scripts + notes, ignore large dumps)
+spike/yt-test.*.json3
+
+# Video deps
 video/.deps/
 video/output/*.mp4
 video/output/*.wav
+
+.superdesign/tmp/

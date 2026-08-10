@@ -1,9 +1,10 @@
 /**
- * 中文翻译提供方 —— 基于 Google Translate 免费端点。
- * Content script 有 host_permissions, 可直接 fetch。
+ * 中文翻译提供方 —— Google Translate 免费端点（短词兜底）。
+ * 输出必须通过质量关卡，否则视为失败。
  */
 
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../definition-provider.js';
+import { buildCleanZhLines } from '../zh-gloss-quality.js';
 import { logger } from '../../shared/logger.js';
 
 const log = logger.createLogger('dict-cn');
@@ -14,12 +15,14 @@ async function translateText(text: string): Promise<string | null> {
     const url = `${API}?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(5000),
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
     });
     if (!resp.ok) return null;
-    const data = await resp.json() as unknown[][];
+    const data = (await resp.json()) as unknown[][];
     return ((data[0] as Array<[string]> | undefined) ?? [])
-      .map(x => x[0]).join('').trim() || null;
+      .map((x) => x[0])
+      .join('')
+      .trim() || null;
   } catch {
     return null;
   }
@@ -29,31 +32,29 @@ export class GoogleCnProvider implements DefinitionProvider {
   readonly name = 'google-cn';
   readonly language = 'zh-CN';
 
-  /** 将英文释义批量译为中文(单次请求, 避免逐条超时) */
   async translate(enResult: DefinitionResult): Promise<DefinitionResult | null> {
     const sources = enResult.entries.slice(0, 5);
     if (!sources.length) return null;
 
     try {
-      // 用特殊分隔符拼接, 一次请求翻译全部
       const SEP = '\n---\n';
-      const joined = sources.map(e => e.definition).join(SEP);
+      const joined = sources.map((e) => e.definition).join(SEP);
       const cnRaw = await translateText(joined);
       if (!cnRaw) return null;
 
-      // 按分隔符切开
-      const cnParts = cnRaw.split(/[-–—]{2,}/).map(s => s.trim()).filter(Boolean);
+      const cnParts = cnRaw.split(/[-–—]{2,}/).map((s) => s.trim()).filter(Boolean);
+      const raw = sources
+        .slice(0, cnParts.length)
+        .map((e, i) => ({ pos: e.partOfSpeech, definition: cnParts[i] }));
+      const lines = buildCleanZhLines(raw);
+      if (!lines.length) return null;
 
-      const entries: DefinitionEntry[] = [];
-      for (let i = 0; i < sources.length && i < cnParts.length; i++) {
-        entries.push({
-          partOfSpeech: sources[i].partOfSpeech,
-          definition: cnParts[i],
-          example: sources[i].example,
-        });
-      }
-
-      return entries.length ? { language: 'zh-CN', entries } : null;
+      const entries: DefinitionEntry[] = lines.map((l, i) => ({
+        partOfSpeech: l.pos || sources[i]?.partOfSpeech || '',
+        definition: l.text,
+        example: sources[i]?.example,
+      }));
+      return { language: 'zh-CN', entries };
     } catch (err) {
       log.debug('CN translate failed:', (err as Error).message);
       return null;
@@ -63,9 +64,11 @@ export class GoogleCnProvider implements DefinitionProvider {
   async lookup(word: string): Promise<DefinitionResult | null> {
     const text = await translateText(word);
     if (!text) return null;
+    const lines = buildCleanZhLines([{ pos: '', definition: text }]);
+    if (!lines.length) return null;
     return {
       language: 'zh-CN',
-      entries: [{ partOfSpeech: '', definition: text }],
+      entries: lines.map((l) => ({ partOfSpeech: l.pos, definition: l.text })),
     };
   }
 }

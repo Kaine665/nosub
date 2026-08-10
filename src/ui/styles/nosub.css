@@ -183,6 +183,27 @@
   cursor: pointer;
 }
 .nosub-upgrade:hover { background: rgba(121,95,232,0.55); }
+.nosub-suggestion {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px; margin-top: 6px;
+  background: rgba(255,193,7,0.12);
+  border: 1px solid rgba(255,193,7,0.2);
+  border-radius: 8px;
+  font-size: 12px; color: rgba(255,255,255,0.7);
+}
+.nosub-suggestion-btn {
+  border: 1px solid rgba(255,193,7,0.35);
+  border-radius: 6px; padding: 4px 12px;
+  background: rgba(255,193,7,0.15);
+  color: #ffc107; cursor: pointer;
+  font: 600 12px/1 system-ui, sans-serif;
+  white-space: nowrap;
+}
+.nosub-suggestion-pro {
+  border-color: rgba(168,139,255,0.4);
+  background: rgba(121,95,232,0.2);
+  color: #c4b5fd;
+}
 .nosub-loop-indicator.visible {
   display: flex;
 }

@@ -68,6 +68,8 @@ export class TranslationService {
   private cache = new Map<string, TranslationResult>();
   /** 当前激活的提供方(null=未探测) */
   private activeProvider: TranslationProvider | null | undefined;
+  /** 上一次翻译失败时, 激活 provider 是否就是 google(用于 UI 给出区域建议) */
+  private lastGoogleFailed = false;
 
   constructor(providers: TranslationProvider[]) {
     this.providers = providers;
@@ -78,13 +80,32 @@ export class TranslationService {
     return this.providers.length > 0;
   }
 
+  /** 获取所有 provider(用于外部设置 API Key) */
+  getProviders(): TranslationProvider[] {
+    return this.providers;
+  }
+
+  /** Google 最近一次翻译是否失败(用于 UI 给出区域兜底建议) */
+  wasGoogleJustFailed(): boolean {
+    return this.lastGoogleFailed;
+  }
+
+  /** 根据用户 locale 推荐区域翻译服务 */
+  static recommendProvider(locale: string): { name: string; label: string; url: string } | null {
+    const lang = locale.toLowerCase();
+    if (lang.startsWith('zh')) return { name: 'baidu', label: '百度翻译', url: 'https://fanyi-api.baidu.com/api/trans/product/desktop' };
+    if (lang.startsWith('ru')) return { name: 'yandex', label: 'Yandex Translate', url: 'https://translate.yandex.com/developers/keys' };
+    if (lang.startsWith('ko')) return { name: 'papago', label: 'Papago (Naver)', url: 'https://developers.naver.com/docs/papago/papago-nmt-overview.md' };
+    return null;
+  }
+
   /**
    * 翻译单条文本。
    *
    * 策略:
-   * 1. 查缓存(同一句不重复请求)
+   * 1. 查缓存(同一句不重复请求, 切视频不清缓存)
    * 2. 用已探测的 activeProvider
-   * 3. 如果未探测,按优先级试每个 provider 的 isAvailable()
+   * 3. 网络失败时静默重试 2 次, 间隔 1s
    * 4. 全部失败 → 返回 null(UI 显示"暂无翻译")
    */
   async translate(request: TranslationRequest): Promise<TranslationResult | null> {
@@ -105,21 +126,33 @@ export class TranslationService {
       return null;
     }
 
-    try {
-      const result = await this.activeProvider.translate(request);
-      if (result) {
-        this.cache.set(cacheKey, result);
-        // 缓存上限 500 条,防止内存膨胀
-        if (this.cache.size > 500) {
-          const firstKey = this.cache.keys().next().value;
-          if (firstKey) this.cache.delete(firstKey);
+    const providerName = this.activeProvider.name;
+    const retryDelays = [2000, 5000];
+    for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+      try {
+        const result = await this.activeProvider.translate(request);
+        if (result) {
+          this.lastGoogleFailed = false;
+          this.cache.set(cacheKey, result);
+          if (this.cache.size > 500) {
+            const firstKey = this.cache.keys().next().value;
+            if (firstKey) this.cache.delete(firstKey);
+          }
+          return result;
         }
+      } catch (err) {
+        log.warn(`翻译失败 (attempt ${attempt + 1}/${retryDelays.length + 1}):`, (err as Error).message);
       }
-      return result;
-    } catch (err) {
-      log.warn('翻译失败:', (err as Error).message);
-      return null;
+      if (attempt < retryDelays.length) {
+        await new Promise(r => setTimeout(r, retryDelays[attempt]));
+      }
     }
+
+    // 全部重试失败: 如果当前只有 google provider, 标记以便 UI 给出区域建议
+    if (providerName === 'google') {
+      this.lastGoogleFailed = true;
+    }
+    return null;
   }
 
   /** 批量翻译(用于预加载整个轨道的翻译) */
@@ -141,10 +174,10 @@ export class TranslationService {
     return results;
   }
 
-  /** 清空缓存(切视频时调用) */
+  /** 重置 provider 探测(切视频时调用, 但不清翻译缓存) */
   clearCache(): void {
-    this.cache.clear();
-    this.activeProvider = undefined; // 重新探测
+    // 不清 cache —— 同一句话在不同视频里翻译结果一样, 没必要重新请求
+    this.activeProvider = undefined; // 重新探测 provider 可用性
   }
 
   // ---- 内部 ----

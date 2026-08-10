@@ -12,8 +12,8 @@ import type { CaptionTrack, CaptionTrackSummary } from '../shared/types.js';
 export interface CaptionAdapter {
   /** 列出可用的字幕轨道(不含 cue 数据) */
   listTracks(): Promise<CaptionTrackSummary[]>;
-  /** 加载指定轨道,返回完整 cue */
-  loadTrack(trackId: string): Promise<CaptionTrack>;
+  /** 加载指定轨道,返回完整 cue。可传 videoId 用于缓存 */
+  loadTrack(trackId: string, videoId?: string): Promise<CaptionTrack>;
   /** 当前是否可用(页面有字幕数据) */
   isAvailable(): boolean;
   /**

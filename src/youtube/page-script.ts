@@ -187,6 +187,73 @@ function readSnapshot() {
   }, '*');
 }
 
+// ---- 第三部分 B: IOS timedtext 直接获取 (不需 POT, 不点按钮) ----
+
+async function fetchTimedText(videoId: string): Promise<unknown | null> {
+  try {
+    const w = window as unknown as {
+      yt?: { config_?: { INNERTUBE_API_KEY?: string } };
+    };
+    const key = w.yt?.config_?.INNERTUBE_API_KEY;
+    if (!key) return null;
+
+    // 用 IOS 客户端请求 player response (不需要 POT)
+    const resp = await fetch(`/youtubei/v1/player?key=${key}&prettyPrint=false`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: 'IOS',
+            clientVersion: '20.10.38',
+            deviceMake: 'Apple',
+            deviceModel: 'iPhone16,2',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+        videoId,
+      }),
+    });
+    if (!resp.ok) return null;
+
+    const data = await resp.json() as {
+      captions?: {
+        playerCaptionsTracklistRenderer?: {
+          captionTracks?: Array<{
+            languageCode: string;
+            kind?: string;
+            baseUrl: string;
+          }>;
+        };
+      };
+    };
+
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!tracks?.length) return null;
+
+    // 选英文轨道 (优先 ASR, 因为大部分视频只有 ASR)
+    const en = tracks.find(t => t.languageCode === 'en')
+      ?? tracks.find(t => t.languageCode.startsWith('en'))
+      ?? tracks[0];
+    if (!en?.baseUrl) return null;
+
+    // fetch timedtext json3
+    const subResp = await fetch(en.baseUrl + '&fmt=json3', {
+      credentials: 'include',
+    });
+    if (!subResp.ok) return null;
+
+    const text = await subResp.text();
+    if (text.length === 0 || !text.startsWith('{')) return null;
+
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 // ---- 第四部分:监听 content script ----
 
 window.addEventListener('message', (e: MessageEvent) => {
@@ -205,6 +272,23 @@ window.addEventListener('message', (e: MessageEvent) => {
       // 降级:如果已有缓存的 proxy 响应就用;否则触发按钮
       tryTriggerTranscript();
       break;
+    case 'fetch-timedtext': {
+      // IOS timedtext 主路径
+      const reqId = d.reqId ?? -1;
+      const videoId = (d.payload as { videoId?: string })?.videoId;
+      if (!videoId) {
+        window.postMessage({ __nosub: true, type: 'timedtext-error', reqId, payload: { error: 'no videoId' } }, '*');
+        break;
+      }
+      fetchTimedText(videoId).then(result => {
+        if (result) {
+          window.postMessage({ __nosub: true, type: 'timedtext-response', reqId, payload: result }, '*');
+        } else {
+          window.postMessage({ __nosub: true, type: 'timedtext-error', reqId, payload: { error: 'fetch failed' } }, '*');
+        }
+      });
+      break;
+    }
   }
 });
 

@@ -34,6 +34,8 @@ import type { Scheduler } from '../playback/playback-engine.js';
 import { rafScheduler } from '../playback/playback-engine.js';
 import { TranslationService } from '../assistance/translation-service.js';
 import { GoogleTranslateProvider } from '../assistance/providers/google-translate-provider.js';
+import { BaiduTranslateProvider } from '../assistance/providers/baidu-translate-provider.js';
+import { YandexTranslateProvider } from '../assistance/providers/yandex-translate-provider.js';
 import { resolveLocale, t, type AppLocale } from '../shared/i18n.js';
 
 const log = logger.createLogger('controller');
@@ -60,6 +62,8 @@ export interface ViewState {
   /** null while account status is loading; translation remains available until resolved. */
   isPro?: boolean;
   upgradeRequired?: boolean;
+  /** Google 翻译不可用时, 推荐的区域兜底方案 */
+  translationSuggestion?: { name: string; label: string } | null;
   errorMessage?: string;
 }
 
@@ -98,11 +102,36 @@ export class SessionController {
   ) {
     this.player = player;
     this.captions = captions;
-    this.translation = translation ?? new TranslationService([new GoogleTranslateProvider()]);
+    this.translation = translation ?? new TranslationService([
+      new GoogleTranslateProvider(),
+      new BaiduTranslateProvider(),
+      new YandexTranslateProvider(),
+    ]);
     // 订阅播放器 seek 事件,判定是否用户主动拖动
     this.player.subscribe((event) => {
       if (event.type === 'seek') {
         this.handleSeekEvent(event.currentTimeMs);
+      }
+    });
+    // 从存储加载用户配置的翻译 API Key
+    this.loadTranslationCredentials();
+  }
+
+  /** 从 chrome.storage 加载自定义翻译 API Key (仅 Pro) */
+  private loadTranslationCredentials(): void {
+    if (typeof chrome === 'undefined' || !chrome.storage) return;
+    chrome.storage.local.get(['translationKeys', 'proAccess'], (result) => {
+      const isPro = result.proAccess === true;
+      if (!isPro) return; // 免费用户只能用 Google Translate
+      const keys = result.translationKeys as Record<string, string> | undefined;
+      if (!keys) return;
+      for (const p of this.translation.getProviders()) {
+        if (p.name === 'baidu' && keys.baiduAppId && keys.baiduSecret) {
+          (p as BaiduTranslateProvider).setCredentials(keys.baiduAppId, keys.baiduSecret);
+        }
+        if (p.name === 'yandex' && keys.yandexKey) {
+          (p as YandexTranslateProvider).setApiKey(keys.yandexKey);
+        }
       }
     });
   }
@@ -111,6 +140,7 @@ export class SessionController {
   async init(videoId: string): Promise<void> {
     log.info('init: videoId', videoId);
     const locale = resolveLocale(this.settings.interfaceLanguage);
+    (this.captions as { setLocale?: (l: AppLocale) => void }).setLocale?.(locale);
     this.emit({ status: 'loading', isRepeating: false, revealLevel: 0, translationAvailable: this.isTranslationAvailable(), playbackRate: this.player.getPlaybackRate(), interfaceLanguage: locale });
 
     if (!this.captions.isAvailable()) {
@@ -132,7 +162,7 @@ export class SessionController {
         ?? tracks.find((track) => track.languageCode.toLowerCase().startsWith(`${preferred}-`))
         ?? tracks.find((track) => track.languageCode.toLowerCase().startsWith('en'))
         ?? tracks[0];
-      const loaded = await this.captions.loadTrack(selected.id);
+      const loaded = await this.captions.loadTrack(selected.id, videoId);
       this.track = loaded;
       this.session = createSession(videoId, loaded.id, loaded.cues);
       log.info('init: 就绪, cue 数', loaded.cues.length);
@@ -183,12 +213,6 @@ export class SessionController {
     const repeating = this.session?.mode.kind === 'repeat';
     const current = repeating ? this.loopLevel : this.normalLevel;
     const next = ((current + 1) % 3) as RevealLevel;
-    if (next === 2 && this.proAccess === false) {
-      this.upgradeRequired = true;
-      this.emit(this.deriveState());
-      return;
-    }
-    this.upgradeRequired = false;
     if (repeating) this.loopLevel = next;
     else this.normalLevel = next;
     this.emit(this.deriveState());
@@ -272,6 +296,7 @@ export class SessionController {
         interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
         isPro: this.proAccess === true,
         upgradeRequired: this.upgradeRequired,
+        translationSuggestion: this.getTranslationSuggestion(),
       };
     }
     const activeCueId = this.session.activeCueId;
@@ -286,7 +311,18 @@ export class SessionController {
       interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
       isPro: this.proAccess === true,
       upgradeRequired: this.upgradeRequired,
+      translationSuggestion: this.getTranslationSuggestion(),
     };
+  }
+
+  /** 翻译失败时给出区域兜底建议 */
+  private getTranslationSuggestion(): { name: string; label: string } | null | undefined {
+    // 只在 Google 刚失败 且 没有其他 provider 可用时建议
+    if (!this.translation.wasGoogleJustFailed()) return undefined;
+    const rec = TranslationService.recommendProvider(
+      resolveLocale(this.settings.interfaceLanguage),
+    );
+    return rec ? { name: rec.name, label: rec.label } : null;
   }
 
   /** 当前活跃的挡位(正常 vs 循环) */
@@ -391,16 +427,21 @@ export class SessionController {
       });
       if (result) {
         cue.translatedText = result.translatedText;
-        cue.translationFailed = false;
+        cue.translationFailed = undefined;
       } else {
-        cue.translationFailed = true;
+        cue.translationFailed = '翻译服务不可用';
       }
       if (this.session?.activeCueId === cue.id) {
         this.emit(this.deriveState());
       }
     } catch (err) {
-      cue.translationFailed = true;
-      log.warn('translateOne failed:', (err as Error).message);
+      const msg = (err as Error).message || '';
+      cue.translationFailed = msg.includes('timeout') || msg.includes('Timeout')
+        ? '网络超时'
+        : msg.includes('429') || msg.includes('Too Many')
+          ? '翻译请求过频, 请稍候'
+          : '网络连接失败';
+      log.warn('translateOne failed:', msg);
       if (this.session?.activeCueId === cue.id) {
         this.emit(this.deriveState());
       }

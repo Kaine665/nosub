@@ -1,6 +1,6 @@
 import { SettingsRepository } from '../storage/settings-repository.js';
 import type { UserSettings } from '../shared/types.js';
-import { resolveLocale, type AppLocale } from '../shared/i18n.js';
+import { resolveLocale, t, type AppLocale } from '../shared/i18n.js';
 import type { AccountRequest, AccountResponse, AccountSnapshot } from '../auth/types.js';
 
 const BILLING_URL = 'https://kaine665.github.io/nosub/';
@@ -92,9 +92,9 @@ async function withBusy(button: HTMLButtonElement, task: () => Promise<void>): P
 function bindAccount(): void {
   const credentials = (): { email: string; password: string } => {
     const email = emailInput.value.trim();
-    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error(locale() === 'zh_CN' ? '请输入有效邮箱。' : 'Enter a valid email address.');
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error(t('invalidEmail', locale()));
     const password = passwordInput.value;
-    if (password.length < 6) throw new Error(locale() === 'zh_CN' ? '密码至少需要 6 位。' : 'Password must be at least 6 characters.');
+    if (password.length < 6) throw new Error(t('passwordTooShort', locale()));
     return { email, password };
   };
   const signInButton = byId<HTMLButtonElement>('sign-in');

@@ -16,11 +16,14 @@ export interface ControlBarProps {
   playbackRate: number;
   errorMessage?: string;
   locale?: AppLocale;
-  upgradeRequired?: boolean;
+  /** Google 翻译不可用时的区域兜底建议 */
+  translationSuggestion?: { name: string; label: string } | null;
+  /** 当前是否为 Pro 用户 */
+  isPro?: boolean;
 }
 
 export function renderControlBar(props: ControlBarProps): string {
-  const { revealLevel, isRepeating, status, playbackRate, errorMessage, locale = 'en', upgradeRequired = false } = props;
+  const { revealLevel, isRepeating, status, playbackRate, errorMessage, locale = 'en', translationSuggestion, isPro } = props;
   const isReady = status === 'ready';
 
   const sClass = revealLevel > 0 ? ' on' : '';
@@ -55,7 +58,7 @@ export function renderControlBar(props: ControlBarProps): string {
         </span>
         ${statusText ? `<span class="nosub-ctrl"><span class="label" title="${escapeHtml(errorMessage ?? statusText)}">${escapeHtml(statusText)}</span></span>` : ''}
       </div>
-      ${upgradeRequired ? `<button class="nosub-upgrade" data-action="open-upgrade">${t('translationIsPro', locale)} · ${t('upgrade', locale)}</button>` : ''}
+      ${translationSuggestion ? `<div class="nosub-suggestion"><span>${t('suggestionGoogleFailed', locale)}${escapeHtml(translationSuggestion.label)}</span>${isPro ? `<button class="nosub-suggestion-btn" data-action="open-options">${t('configure', locale)}</button>` : `<button class="nosub-suggestion-btn nosub-suggestion-pro" data-action="open-upgrade">${t('upgradeToPro', locale)}</button>`}</div>` : ''}
       <span class="nosub-loop-indicator${isRepeating ? ' visible' : ''}">
         <span class="nosub-loop-dot"></span>${t('repeating', locale)}
         <button class="nosub-exit-btn" data-action="exit-loop">${t('exit', locale)}</button>

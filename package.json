@@ -2,7 +2,7 @@
   "name": "nosub",
   "version": "0.3.0",
   "private": true,
-  "description": "Focused listening for YouTube — repeat, reveal, translate, and learn.",
+  "description": "YouTube listening practice — repeat sentences, reveal captions, slow down, and look up words.",
   "type": "module",
   "engines": {
     "node": ">=22 <23"

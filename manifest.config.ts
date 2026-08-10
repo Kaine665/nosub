@@ -35,8 +35,12 @@ export default defineManifest({
   host_permissions: [
     'https://www.youtube.com/*',
     'https://api.dictionaryapi.dev/*',
+    'https://ssl.gstatic.com/*',
     'https://translate.googleapis.com/*',
     'https://tatoeba.org/*',
+    'https://dict.youdao.com/*',
+    'https://dict-mobile.iciba.com/*',
+    'http://43.130.246.125:8899/*',
     'https://eyqnncnryfcnwtgupoxy.supabase.co/*',
   ],
   content_scripts: [
@@ -60,7 +64,13 @@ export default defineManifest({
   },
   web_accessible_resources: [
     {
-      resources: ['dict.json'],
+      resources: [
+        'public/dict-zh.json',
+        'public/dict-en-core.json',
+        'public/fonts/Inter-400.woff2',
+        'public/fonts/Inter-600.woff2',
+        'public/fonts/Inter-700.woff2',
+      ],
       matches: ['https://www.youtube.com/*'],
     },
   ],

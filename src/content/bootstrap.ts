@@ -102,16 +102,16 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
 
     // 订阅 controller 状态:进入 repeat → startLoop;退出 repeat → stopLoop
     controller.subscribe((state) => {
+      // stopController 后 engine 已清空, 不再操作
+      if (!runtime.engine) return;
       if (state.status !== 'ready') {
-        engine.stopLoop();
+        runtime.engine.stopLoop();
         return;
       }
-      // isRepeating 变化由 requestLoopBack/requestNext 触发;
-      // 这里在 activeCue 存在且 repeating 时确保 loop 运行
       if (state.isRepeating && state.activeCue) {
-        engine.startLoop(state.activeCue);
+        runtime.engine.startLoop(state.activeCue);
       } else {
-        engine.stopLoop();
+        runtime.engine.stopLoop();
       }
     });
 
@@ -121,13 +121,14 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
   }
 
   function stopController(): void {
+    // 先断开 controller → engine 的订阅,防止 dispose 后回调仍触发 startLoop
     runtime.keyboard?.detach();
     runtime.engine?.dispose();
+    runtime.engine = null;  // 先清引用, subscribe 回调里检查 null
     runtime.ui?.dispose();
     runtime.controller?.dispose();
     unmountAppContainer();
     runtime.keyboard = null;
-    runtime.engine = null;
     runtime.ui = null;
     runtime.controller = null;
   }

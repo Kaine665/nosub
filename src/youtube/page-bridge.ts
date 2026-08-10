@@ -50,11 +50,20 @@ class PageBridge {
           log.debug('收到 snapshot: playerResponse:', !!this.latestSnapshot.playerResponse, 'initialData:', !!this.latestSnapshot.initialData);
           break;
         case 'transcript-response': {
-          // proxy 响应(reqId=-2):resolve 所有 pending 请求
           if (data.reqId === -2) {
-            this.cachedProxyResponse = data.payload;
-            for (const r of this.pendingRequests.values()) { clearTimeout(r.timer); r.resolve(data.payload); }
+            // proxy 响应: 只 resolve 当前 pending(通常只有 1 个), 不缓存太久
+            // 防止旧视频的 transcript 响应注入到新视频
+            const pending = [...this.pendingRequests.values()];
             this.pendingRequests.clear();
+            if (pending.length > 0) {
+              // 只用最新的一条请求, 丢掉可能过期的
+              const latest = pending[pending.length - 1];
+              for (const r of pending) clearTimeout(r.timer);
+              latest.resolve(data.payload);
+            } else {
+              // 没有 pending 请求时缓存, 下次 fetchTranscript 立即用
+              this.cachedProxyResponse = data.payload;
+            }
           } else {
             const req = this.pendingRequests.get(String(data.reqId ?? -1));
             if (req) { this.pendingRequests.delete(String(data.reqId)); clearTimeout(req.timer); req.resolve(data.payload); }
@@ -71,6 +80,24 @@ class PageBridge {
           }
           break;
         }
+        case 'timedtext-response': {
+          const req = this.pendingRequests.get(String(data.reqId ?? -1));
+          if (req) {
+            this.pendingRequests.delete(String(data.reqId));
+            clearTimeout(req.timer);
+            req.resolve(data.payload);
+          }
+          break;
+        }
+        case 'timedtext-error': {
+          const req = this.pendingRequests.get(String(data.reqId ?? -1));
+          if (req) {
+            this.pendingRequests.delete(String(data.reqId));
+            clearTimeout(req.timer);
+            req.reject(new Error('timedtext fetch failed'));
+          }
+          break;
+        }
       }
     };
     window.addEventListener('message', this.listener);
@@ -80,6 +107,27 @@ class PageBridge {
   /** 请求主世界重读一次(SPA 切视频后数据变了) */
   requestSnapshot(): void {
     window.postMessage({ __nosub: true, type: 'request-snapshot' }, '*');
+  }
+
+  /**
+   * IOS timedtext 路径: MAIN world 里直接 fetch, 不点按钮不拦截。
+   * 失败返回 null (由调用方决定是否降级)。
+   */
+  fetchTimedText(videoId: string, timeoutMs = 5000): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      const id = ++this.reqId;
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(String(id));
+        reject(new Error('timedtext timeout'));
+      }, timeoutMs);
+      this.pendingRequests.set(String(id), { resolve, reject, timer });
+      window.postMessage({
+        __nosub: true,
+        type: 'fetch-timedtext',
+        reqId: id,
+        payload: { videoId },
+      }, '*');
+    });
   }
 
   /**

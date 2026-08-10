@@ -143,6 +143,10 @@ export class SessionLifecycle {
     }
 
     const captions = this.captionFactory();
+    // 设置 videoId 到 adapter (用于字幕缓存)
+    if ('setVideoId' in captions) {
+      (captions as { setVideoId: (id: string) => void }).setVideoId(videoId);
+    }
     // 关键:等 YouTube 字幕元数据就绪(SPA 下 captions 异步填充,
     // document_idle 时可能还没到 → isAvailable 误判 false)
     const captionsReady = await captions.waitForReady(10000);

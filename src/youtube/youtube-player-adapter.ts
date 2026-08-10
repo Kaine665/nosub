@@ -44,6 +44,14 @@ export class YouTubePlayerAdapter implements PlayerAdapter {
   }
 
   private bindVideo(video: HTMLVideoElement): void {
+    // 先清理旧的绑定(防止重复 attach 时事件叠加)
+    if (this.video && this.boundHandlers.length > 0) {
+      for (const { event, handler } of this.boundHandlers) {
+        this.video.removeEventListener(event, handler);
+      }
+      this.boundHandlers = [];
+    }
+
     this.video = video;
     const on = (event: string, handler: (e: Event) => void) => {
       video.addEventListener(event, handler);

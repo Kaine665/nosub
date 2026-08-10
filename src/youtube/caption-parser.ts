@@ -146,3 +146,40 @@ function parseMs(value: string | undefined): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : NaN;
 }
+
+// ---- json3 格式解析 (IOS timedtext 端点返回) ----
+
+interface Json3Event {
+  tStartMs?: number;
+  dDurationMs?: number;
+  segs?: Array<{ utf8?: string }>;
+}
+
+interface Json3Response {
+  events?: Json3Event[];
+}
+
+/**
+ * 从 timedtext json3 响应解析出原始 cue。
+ * json3 格式: { events: [{ tStartMs, dDurationMs, segs: [{ utf8 }] }] }
+ */
+export function parseJson3Response(
+  response: unknown,
+): Array<{ startMs: number; endMs: number; text: string }> {
+  const data = response as Json3Response;
+  if (!data?.events) return [];
+
+  const cues: Array<{ startMs: number; endMs: number; text: string }> = [];
+  for (const ev of data.events) {
+    if (typeof ev.tStartMs !== 'number') continue;
+    const segs = ev.segs;
+    if (!segs) continue;
+    const text = segs.map((s) => s.utf8 ?? '').join('').trim();
+    if (!text) continue;
+
+    const startMs = ev.tStartMs;
+    const endMs = startMs + (ev.dDurationMs ?? 0);
+    cues.push({ startMs, endMs, text });
+  }
+  return cues;
+}

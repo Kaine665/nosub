@@ -14,8 +14,8 @@ export interface Cue {
   text: string;
   /** 可选翻译;无翻译时为 undefined */
   translatedText?: string;
-  /** 翻译请求已失败(区别于仍在加载) */
-  translationFailed?: boolean;
+  /** 翻译失败原因: undefined=未尝试, string=失败原因(如"网络超时") */
+  translationFailed?: string;
 }
 
 /**

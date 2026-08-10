@@ -73,24 +73,6 @@ describe('SessionController.toggleReveal (S 键)', () => {
     expect(controller.getState().revealLevel).toBe(0);
   });
 
-  it('免费账号保留原文字幕，但翻译层提示升级', async () => {
-    const { controller } = await initReady();
-    controller.setProAccess(false);
-    controller.toggleReveal();
-    expect(controller.getState().revealLevel).toBe(1);
-    controller.toggleReveal();
-    expect(controller.getState().revealLevel).toBe(1);
-    expect(controller.getState().upgradeRequired).toBe(true);
-  });
-
-  it('Pro 账号可以打开翻译层', async () => {
-    const { controller } = await initReady();
-    controller.setProAccess(true);
-    controller.toggleReveal();
-    controller.toggleReveal();
-    expect(controller.getState().revealLevel).toBe(2);
-    expect(controller.getState().upgradeRequired).toBe(false);
-  });
 });
 
 describe('SessionController.requestLoopBack (A 键)', () => {

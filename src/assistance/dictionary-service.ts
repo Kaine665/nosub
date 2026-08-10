@@ -6,7 +6,7 @@
  * 内置 mini 词典覆盖最常用的 ~500 词, 确保离线也能用。
  */
 
-import { proxyFetch } from '../shared/proxy-fetch.js';
+import { safeFetch } from '../shared/fetch-utils.js';
 import { logger } from '../shared/logger.js';
 
 const log = logger.createLogger('dict');
@@ -524,14 +524,13 @@ export class DictionaryService {
 
   private async onlineLookup(word: string): Promise<WordDefinition | null> {
     try {
-      const resp = await proxyFetch(
-        'dict-fetch',
+      const resp = await safeFetch(
         `${ONLINE_API}/${encodeURIComponent(word)}`,
-        ONLINE_TIMEOUT_MS,
+        { timeoutMs: ONLINE_TIMEOUT_MS },
       );
-      if (!resp.ok || !resp.body) return null;
+      if (!resp) return null;
 
-      const data = resp.body as DictApiEntry[];
+      const data = (await resp.json()) as DictApiEntry[];
       const entry = data?.[0];
       if (!entry) return null;
 
