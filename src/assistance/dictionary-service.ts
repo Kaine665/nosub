@@ -40,6 +40,7 @@ interface CompactEntry {
   p?: string;
   d: string[];
   e?: string[];
+  i?: string;
 }
 
 /** 远程 API 响应 */
@@ -524,13 +525,22 @@ export class DictionaryService {
 
   private async onlineLookup(word: string): Promise<WordDefinition | null> {
     try {
-      const resp = await safeFetch(
-        `${ONLINE_API}/${encodeURIComponent(word)}`,
-        { timeoutMs: ONLINE_TIMEOUT_MS },
-      );
-      if (!resp) return null;
+      const url = `${ONLINE_API}/${encodeURIComponent(word)}`;
 
-      const data = (await resp.json()) as DictApiEntry[];
+      // 优先走 SW 代理（绕 YouTube CSP + 国内被墙）
+      let data: DictApiEntry[] | null = null;
+      try {
+        const resp = await chrome.runtime.sendMessage({ type: 'dict-fetch', url });
+        if (resp?.ok && resp.body) data = resp.body as DictApiEntry[];
+      } catch { /* SW 不通就 fallback */ }
+
+      // SW 失败 → content script 直连兜底
+      if (!data) {
+        const r = await safeFetch(url, { timeoutMs: ONLINE_TIMEOUT_MS });
+        if (r) data = (await r.json()) as DictApiEntry[];
+      }
+      if (!data) return null;
+
       const entry = data?.[0];
       if (!entry) return null;
 
@@ -569,8 +579,12 @@ export class DictionaryService {
 
   /** 将压缩格式展开为完整 WordDefinition */
   private expandCompact(word: string, entry: CompactEntry): WordDefinition {
+    const ipa = entry.i?.trim() || '';
     return {
       word,
+      phonetic: ipa || undefined,
+      phoneticUK: ipa || undefined,
+      phoneticUS: ipa || undefined,
       meanings: [{
         partOfSpeech: entry.p ?? '',
         definitions: entry.d.map((d) => ({ definition: d })),

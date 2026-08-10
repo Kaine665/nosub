@@ -40,7 +40,7 @@ export default defineManifest({
     'https://tatoeba.org/*',
     'https://dict.youdao.com/*',
     'https://dict-mobile.iciba.com/*',
-    'http://43.130.246.125:8899/*',
+    'http://43.130.246.125/*',
     'https://eyqnncnryfcnwtgupoxy.supabase.co/*',
   ],
   content_scripts: [

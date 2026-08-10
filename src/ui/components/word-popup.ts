@@ -16,7 +16,7 @@ const CARD = { width: 380 };
 const GAP_ABOVE_CUE = 10; // 卡片底边与字幕顶边的间距
 const VIEW_MARGIN = 8;
 const TATOEBA = 'https://tatoeba.org/en/api_v0/search';
-const DICT_SERVER = 'http://43.130.246.125:8899';
+const DICT_SERVER = 'http://43.130.246.125';
 const YOUDAO_AUDIO = 'https://dict.youdao.com/dictvoice';
 const MAX_SENSES = 4;
 const MAX_EXAMPLES = 2;
@@ -632,6 +632,43 @@ ${interFontFaces()}
     }
   }
 
+  /**
+   * 通过 service worker fetch 播放。
+   * SW 有 host_permissions，不受页面 mixed content / CSP 限制。
+   * 用于 HTTP 音频源（我们的 dict server）在 YouTube HTTPS 页面上被拦的情况。
+   */
+  private async playViaSW(url: string): Promise<boolean> {
+    try {
+      const resp = await chrome.runtime.sendMessage({
+        type: 'audio-fetch',
+        url,
+      });
+      if (!resp?.ok || !resp.body) return false;
+
+      // base64 → blob → 播放
+      const bin = atob(resp.body as string);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: resp.contentType || 'audio/mpeg' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      if (this.audio) {
+        this.audio.pause();
+        this.audio.removeAttribute('src');
+      }
+      if (this.blobUrl) {
+        URL.revokeObjectURL(this.blobUrl);
+      }
+      this.blobUrl = blobUrl;
+      const audio = new Audio(blobUrl);
+      this.audio = audio;
+      await audio.play();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** 发音主源 Google TTS（Audio 直链）；有道 / 日本服务器兜底 */
   private async playPronunciation(_url: string, btn?: HTMLElement): Promise<void> {
     const word = (btn?.dataset.word || this.currentWord).replace(/[^a-zA-Z'-]/g, '').toLowerCase();
@@ -649,9 +686,9 @@ ${interFontFaces()}
     const youdao = `${YOUDAO_AUDIO}?audio=${encodeURIComponent(word)}&type=${youdaoType}`;
     if (await this.playDirect(youdao)) return;
 
-    // HTTP 服务器最后试（YouTube HTTPS 页可能拦 mixed content）
+    // 自己的 dict server (HTTP)——走 SW fetch 绕开 mixed content 拦截
     const fallback = `${DICT_SERVER}/api/audio/${encodeURIComponent(word)}?accent=${accent}`;
-    if (await this.playDirect(fallback)) return;
+    if (await this.playViaSW(fallback)) return;
 
     if (btn) this.flashAudioError(btn);
   }
