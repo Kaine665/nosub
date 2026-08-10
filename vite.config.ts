@@ -1,9 +1,23 @@
 import { defineConfig } from 'vite';
 import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.config';
+import { rm } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
+const excludeLocalDictionaries = {
+  name: 'exclude-local-dictionaries',
+  apply: 'build' as const,
+  async closeBundle() {
+    await Promise.all([
+      'dict.json',
+      'dict-zh.json',
+      'dict-en-core.json',
+    ].map((file) => rm(resolve('dist', file), { force: true })));
+  },
+};
 
 export default defineConfig({
-  plugins: [crx({ manifest })],
+  plugins: [crx({ manifest }), excludeLocalDictionaries],
   build: {
     target: 'chrome110',
     outDir: 'dist',

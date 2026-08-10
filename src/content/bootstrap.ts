@@ -87,7 +87,7 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
     // UI 挂载
     const shadow = mountAppContainer();
     if (shadow) {
-      runtime.ui = new ListeningUI({ shadow, controller });
+      runtime.ui = new ListeningUI({ shadow, controller, dictionarySource: saved.dictionarySource });
     }
 
     // 键盘

@@ -65,8 +65,6 @@ export default defineManifest({
   web_accessible_resources: [
     {
       resources: [
-        'public/dict-zh.json',
-        'public/dict-en-core.json',
         'public/fonts/Inter-400.woff2',
         'public/fonts/Inter-600.woff2',
         'public/fonts/Inter-700.woff2',

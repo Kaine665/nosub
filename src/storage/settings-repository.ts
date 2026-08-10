@@ -70,6 +70,10 @@ export class SettingsRepository {
         p.interfaceLanguage === 'en' || p.interfaceLanguage === 'zh_CN' || p.interfaceLanguage === 'auto'
           ? p.interfaceLanguage
           : DEFAULT_SETTINGS.interfaceLanguage,
+      dictionarySource:
+        p.dictionarySource === 'server' || p.dictionarySource === 'public'
+          ? p.dictionarySource
+          : DEFAULT_SETTINGS.dictionarySource,
     };
   }
 

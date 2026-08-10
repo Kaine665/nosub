@@ -25,6 +25,8 @@ export class DictionaryApiProvider implements DefinitionProvider {
       if (!resp.ok) return null;
 
       const data = (await resp.json()) as Array<{
+        phonetic?: string;
+        phonetics?: Array<{ text?: string; audio?: string }>;
         meanings?: Array<{
           partOfSpeech: string;
           definitions: Array<{ definition: string; example?: string }>;
@@ -44,7 +46,21 @@ export class DictionaryApiProvider implements DefinitionProvider {
         }
       }
 
-      return { language: 'en', entries };
+      const phonetics = entry.phonetics ?? [];
+      const uk = phonetics.find((p) => /(?:uk|gb)/i.test(p.audio ?? ''));
+      const us = phonetics.find((p) => /us/i.test(p.audio ?? ''));
+      const first = phonetics.find((p) => p.text || p.audio);
+      const fallbackText = entry.phonetic ?? first?.text;
+
+      return {
+        language: 'en',
+        entries,
+        phonetic: fallbackText,
+        phoneticUK: uk?.text ?? fallbackText,
+        phoneticUS: us?.text ?? fallbackText,
+        audioUK: uk?.audio,
+        audioUS: us?.audio,
+      };
     } catch (err) {
       log.debug('EN lookup failed:', (err as Error).message);
       return null;

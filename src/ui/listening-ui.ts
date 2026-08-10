@@ -6,7 +6,7 @@
  */
 
 import type { SessionController, ViewState } from '../content/session-controller.js';
-import { DictionaryService } from '../assistance/dictionary-service.js';
+import type { UserSettings } from '../shared/types.js';
 
 import { renderSubtitle } from './components/subtitle-display.js';
 import { renderControlBar } from './components/control-bar.js';
@@ -18,9 +18,8 @@ import nosubCSS from './styles/nosub.css?raw';
 export interface ListeningUIOptions {
   shadow: ShadowRoot;
   controller: SessionController;
+  dictionarySource?: UserSettings['dictionarySource'];
 }
-
-const dictionary = new DictionaryService();
 
 export class ListeningUI {
   private shadow: ShadowRoot;
@@ -37,7 +36,10 @@ export class ListeningUI {
   constructor(opts: ListeningUIOptions) {
     this.shadow = opts.shadow;
     this.controller = opts.controller;
-    this.popup = new WordPopup(dictionary, opts.controller.getState().interfaceLanguage ?? 'en');
+    this.popup = new WordPopup(
+      opts.controller.getState().interfaceLanguage ?? 'en',
+      opts.dictionarySource ?? 'public',
+    );
 
     this.shadow.innerHTML = '';
     const style = document.createElement('style');

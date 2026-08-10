@@ -68,6 +68,8 @@ export interface UserSettings {
   translationLanguage?: string;
   /** Extension interface language. auto follows the browser UI language. */
   interfaceLanguage: 'auto' | 'en' | 'zh_CN';
+  /** Dictionary lookup route. Public APIs always fall back to the NoSub server. */
+  dictionarySource: 'public' | 'server';
 }
 
 /**
@@ -100,6 +102,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   targetLanguage: 'en',
   translationLanguage: 'zh-CN',
   interfaceLanguage: 'auto',
+  dictionarySource: 'public',
 };
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;

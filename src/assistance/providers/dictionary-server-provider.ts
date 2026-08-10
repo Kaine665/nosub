@@ -5,6 +5,7 @@
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../definition-provider.js';
 import { buildCleanZhLines } from '../zh-gloss-quality.js';
 import { logger } from '../../shared/logger.js';
+import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict-server');
 const SERVER = 'http://43.130.246.125:8899';
@@ -23,13 +24,14 @@ export class DictionaryServerProvider implements DefinitionProvider {
     if (!clean || clean.length < 2) return null;
 
     try {
-      const resp = await fetch(
+      const resp = await proxyFetch(
+        'dict-fetch',
         `${SERVER}/api/word/${this.language}/${encodeURIComponent(clean)}`,
-        { signal: AbortSignal.timeout(5000) },
+        5500,
       );
-      if (!resp.ok) return null;
+      if (!resp.ok || !resp.body) return null;
 
-      const data = (await resp.json()) as {
+      const data = resp.body as {
         word: string; pos: string; defs: string[]; examples: string[]; ipa: string;
       };
       if (!data?.defs?.length) return null;
@@ -62,7 +64,14 @@ export class DictionaryServerProvider implements DefinitionProvider {
         });
       }
 
-      return { language: this.language, entries };
+      const phonetic = data.ipa?.trim() || undefined;
+      return {
+        language: this.language,
+        entries,
+        phonetic,
+        phoneticUK: phonetic,
+        phoneticUS: phonetic,
+      };
     } catch (err) {
       log.debug('server lookup failed:', (err as Error).message);
       return null;

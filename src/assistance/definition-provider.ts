@@ -17,6 +17,12 @@ export interface DefinitionResult {
   language: string;
   /** 该语言的释义列表, 按常用度排序 */
   entries: DefinitionEntry[];
+  /** Optional pronunciation metadata supplied by the same lookup source. */
+  phonetic?: string;
+  phoneticUK?: string;
+  phoneticUS?: string;
+  audioUK?: string;
+  audioUS?: string;
 }
 
 export interface DefinitionProvider {

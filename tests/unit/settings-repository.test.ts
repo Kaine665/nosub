@@ -50,6 +50,7 @@ describe('SettingsRepository.load', () => {
         targetLanguage: 'en',
         translationLanguage: 'ja',
         interfaceLanguage: 'en',
+        dictionarySource: 'server',
       },
       vocabulary: [],
       schemaVersion: 1,
@@ -59,6 +60,7 @@ describe('SettingsRepository.load', () => {
     expect(settings.enabled).toBe(false);
     expect(settings.showTargetCaption).toBe(true);
     expect(settings.translationLanguage).toBe('ja');
+    expect(settings.dictionarySource).toBe('server');
   });
 
   it('部分字段缺失 → 用默认值填充', async () => {
@@ -119,6 +121,7 @@ describe('SettingsRepository.save', () => {
       targetLanguage: 'en',
       translationLanguage: 'zh-CN',
       interfaceLanguage: 'auto',
+      dictionarySource: 'public',
     });
     expect(fake.store['nosub-settings']).toBeDefined();
     expect((fake.store['nosub-settings'] as { settings: { showTargetCaption: boolean } }).settings.showTargetCaption).toBe(true);
@@ -135,6 +138,7 @@ describe('SettingsRepository.save', () => {
       targetLanguage: 'en',
       translationLanguage: 'ko',
       interfaceLanguage: 'zh_CN' as const,
+      dictionarySource: 'server' as const,
     };
     await repo.save(saved);
     const loaded = await repo.load();

@@ -5,18 +5,19 @@
  * 音标/音频始终来自英文词典源。
  */
 
-import { DictionaryService, type WordDefinition } from '../../assistance/dictionary-service.js';
 import { DictionaryRouter, type DictLocale } from '../../assistance/dictionary-router.js';
-import type { DefinitionProvider, DefinitionEntry } from '../../assistance/definition-provider.js';
+import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../../assistance/definition-provider.js';
+import type { UserSettings } from '../../shared/types.js';
 import { buildCleanZhLines } from '../../assistance/zh-gloss-quality.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import { t, type AppLocale } from '../../shared/i18n.js';
+import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const CARD = { width: 380 };
 const GAP_ABOVE_CUE = 10; // 卡片底边与字幕顶边的间距
 const VIEW_MARGIN = 8;
 const TATOEBA = 'https://tatoeba.org/en/api_v0/search';
-const DICT_SERVER = 'http://43.130.246.125';
+const DICT_SERVER = 'http://43.130.246.125:8899';
 const YOUDAO_AUDIO = 'https://dict.youdao.com/dictvoice';
 const MAX_SENSES = 4;
 const MAX_EXAMPLES = 2;
@@ -244,11 +245,8 @@ function preferSimplified(text: string): string {
   return toSimplified(text);
 }
 
-const router = new DictionaryRouter();
-
 export class WordPopup {
   private el: HTMLElement | null = null;
-  private dict: DictionaryService;
   /** EN 参考 Provider (始终提供音标/发音) */
   private refProvider: DefinitionProvider;
   /** 用户语言 Provider (提供释义) */
@@ -266,8 +264,11 @@ export class WordPopup {
   /** 当前查词，用于发音服务器兜底 */
   private currentWord = '';
 
-  constructor(dict: DictionaryService, locale: DictLocale = 'en') {
-    this.dict = dict;
+  constructor(
+    locale: DictLocale = 'en',
+    dictionarySource: UserSettings['dictionarySource'] = 'public',
+  ) {
+    const router = new DictionaryRouter(dictionarySource);
     this.locale = locale;
     this.langProvider = router.getProvider(locale);
     this.refProvider = router.getReferenceProvider();
@@ -301,16 +302,17 @@ export class WordPopup {
 
     // 并行: EN 参考(音标/例句) + 用户语言释义 + Tatoeba
     Promise.all([
-      this.dict.lookup(word),          // dictDef — 本地 GCIDE / Free Dict 兜底
       this.refProvider.lookup(word),   // enResult — EN 参考数据(音标/发音)
-      this.langProvider.lookup(word),  // langResult — 用户语言释义
+      this.locale === 'en'
+        ? Promise.resolve(null)
+        : this.langProvider.lookup(word), // langResult — 用户语言释义
       this.fetchTatoeba(word),         // tatoeba 例句
       this.fetchServerExamples(word),  // 服务器例句兜底
-    ]).then(async ([dictDef, enResult, langResult, tatoeba, serverExs]) => {
+    ]).then(async ([enResult, langResult, tatoeba, serverExs]) => {
       if (gen !== this.lookupGen || !this.el) return;
       const b = this.el.querySelector('[data-card-body]') as HTMLElement | null;
       if (!b) return;
-      if (!dictDef && !enResult && !langResult) {
+      if (!enResult && !langResult) {
         b.innerHTML = this.renderEmpty();
         this.place();
         return;
@@ -319,7 +321,7 @@ export class WordPopup {
       b.innerHTML = this.render(
         enResult?.entries ?? null,
         langResult?.entries ?? null,
-        dictDef,
+        enResult,
         cueText,
         [...tatoeba, ...serverExs],
       );
@@ -423,12 +425,13 @@ export class WordPopup {
     try {
       const clean = word.replace(/[^a-zA-Z'-]/g, '').toLowerCase();
       if (!clean) return [];
-      const r = await fetch(
+      const r = await proxyFetch(
+        'dict-fetch',
         `${DICT_SERVER}/api/word/en/${encodeURIComponent(clean)}`,
-        { signal: AbortSignal.timeout(4000) },
+        4500,
       );
-      if (!r.ok) return [];
-      const d = (await r.json()) as { examples?: string[] };
+      if (!r.ok || !r.body) return [];
+      const d = r.body as { examples?: string[] };
       return (d.examples ?? []).filter(t => t.length > 0 && t.length < 140);
     } catch { return []; }
   }
@@ -496,21 +499,14 @@ ${interFontFaces()}
   private render(
     enEntries: DefinitionEntry[] | null,
     langEntries: DefinitionEntry[] | null,
-    dictDef: WordDefinition | null,
+    enResult: DefinitionResult | null,
     _cueText: string | undefined,
     tatoeba: string[],
   ): string {
     // 音标放进 header
-    this.fillPhonetic(dictDef);
+    this.fillPhonetic(enResult);
 
-    // 在线 EN 失败时, 用本地词典兜底(避免只显示语境没有释义)
-    const fallbackEntries: DefinitionEntry[] = (!enEntries && dictDef)
-      ? dictDef.meanings.flatMap(m =>
-          m.definitions.map(d => ({ partOfSpeech: m.partOfSpeech, definition: d.definition, example: d.example })),
-        )
-      : [];
-
-    const sourceEntries = langEntries ?? enEntries ?? fallbackEntries;
+    const sourceEntries = langEntries ?? enEntries ?? [];
     // 中文：统一过质量关卡（禁繁体/粤语/非中文）；英文走原合并逻辑
     const senseLines = this.locale === 'zh_CN'
       ? buildCleanZhLines(sourceEntries.map((e) => ({
@@ -560,7 +556,7 @@ ${interFontFaces()}
     return p.length ? p.join('') : this.renderEmpty();
   }
 
-  private fillPhonetic(def: WordDefinition | null): void {
+  private fillPhonetic(def: DefinitionResult | null): void {
     if (!this.el) return;
     const slot = this.el.querySelector('[data-phonetic]') as HTMLElement | null;
     if (!slot) return;

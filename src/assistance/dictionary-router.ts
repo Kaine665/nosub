@@ -9,15 +9,14 @@
 import type { DefinitionProvider, DefinitionResult } from './definition-provider.js';
 import { DictionaryApiProvider } from './providers/dictionary-api-provider.js';
 import { GoogleCnProvider } from './providers/google-cn-provider.js';
-import { WiktionaryEnProvider } from './providers/wiktionary-en-provider.js';
 import { DictionaryServerProvider } from './providers/dictionary-server-provider.js';
 import { IcibaZhProvider } from './providers/iciba-zh-provider.js';
 import { YoudaoZhProvider } from './providers/youdao-zh-provider.js';
-import { WiktionaryZhProvider } from './providers/wiktionary-zh-provider.js';
+import type { UserSettings } from '../shared/types.js';
 
 export type DictLocale = 'en' | 'zh_CN';
 
-class CompositeProvider implements DefinitionProvider {
+export class CompositeProvider implements DefinitionProvider {
   readonly name: string;
   readonly language: string;
   private chain: DefinitionProvider[];
@@ -37,37 +36,31 @@ class CompositeProvider implements DefinitionProvider {
   }
 }
 
-const serverEn = new DictionaryServerProvider('en');
-const enLocalProvider = new WiktionaryEnProvider();
-const enOnlineProvider = new DictionaryApiProvider();
-const icibaZh = new IcibaZhProvider();
-const youdaoZh = new YoudaoZhProvider();
-const googleZh = new GoogleCnProvider();
-const serverZh = new DictionaryServerProvider('zh_CN');
-const localZh = new WiktionaryZhProvider();
-
-const enPrimary: DefinitionProvider = new CompositeProvider([
-  serverEn,
-  enLocalProvider,
-  enOnlineProvider,
-]);
-
-/** 中文：多源短义项，全部需过质量关卡（provider 内部已过滤） */
-const zhPrimary: DefinitionProvider = new CompositeProvider([
-  icibaZh,
-  youdaoZh,
-  googleZh,
-  serverZh,
-  localZh,
-]);
-
 export class DictionaryRouter {
+  private readonly enPrimary: DefinitionProvider;
+  private readonly zhPrimary: DefinitionProvider;
+
+  constructor(source: UserSettings['dictionarySource'] = 'public') {
+    const serverEn = new DictionaryServerProvider('en');
+    const serverZh = new DictionaryServerProvider('zh_CN');
+
+    this.enPrimary = new CompositeProvider(source === 'public'
+      ? [new DictionaryApiProvider(), serverEn]
+      : [serverEn]);
+
+    // Public Chinese dictionaries are tried in quality order. The NoSub
+    // server is the final fallback, or the only source in server-only mode.
+    this.zhPrimary = new CompositeProvider(source === 'public'
+      ? [new IcibaZhProvider(), new YoudaoZhProvider(), new GoogleCnProvider(), serverZh]
+      : [serverZh]);
+  }
+
   getProvider(locale: DictLocale): DefinitionProvider {
-    if (locale === 'zh_CN') return zhPrimary;
-    return enPrimary;
+    if (locale === 'zh_CN') return this.zhPrimary;
+    return this.enPrimary;
   }
 
   getReferenceProvider(): DefinitionProvider {
-    return enPrimary;
+    return this.enPrimary;
   }
 }
