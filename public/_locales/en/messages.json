@@ -1,5 +1,5 @@
 {
-  "appName": { "message": "NoSub — YouTube Listening Practice" },
-  "appDescription": { "message": "Practice English listening on YouTube: repeat sentences, reveal captions step by step, slow down, and look up words." },
+  "appName": { "message": "NoSub: English Listening on YouTube" },
+  "appDescription": { "message": "Turn real YouTube videos into English listening practice. Repeat sentences, reveal captions, slow playback, and look up words." },
   "actionTitle": { "message": "Open NoSub" }
 }

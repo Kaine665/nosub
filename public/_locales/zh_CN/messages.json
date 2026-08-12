@@ -1,5 +1,5 @@
 {
-  "appName": { "message": "NoSub — YouTube 英语精听" },
-  "appDescription": { "message": "在 YouTube 上练英语听力：单句循环、先听后看字幕、调速与点词查义。适合精听与跟读练习。" },
+  "appName": { "message": "NoSub：用 YouTube 练英语听力" },
+  "appDescription": { "message": "把真实 YouTube 视频变成英语精听练习：逐句重听、按需显示字幕、调节语速，并在视频内点词查义。" },
   "actionTitle": { "message": "打开 NoSub" }
 }
