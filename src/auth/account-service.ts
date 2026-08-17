@@ -1,9 +1,8 @@
-import type { AccountSnapshot, AuthUser, BillingSubscription } from './types.js';
+import type { AccountSnapshot } from './types.js';
 
-const SUPABASE_URL = 'https://eyqnncnryfcnwtgupoxy.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_7Vex6ZM_52kqb9CCPyIYZw_ezez33Gm';
-const SESSION_KEY = 'nosub-auth-session';
-const ACCOUNT_CACHE_KEY = 'nosub-account-cache';
+const API_URL = 'https://api-nosub.43-130-246-125.sslip.io';
+const SESSION_KEY = 'nosub-auth-session-v2';
+const ACCOUNT_CACHE_KEY = 'nosub-account-cache-v2';
 
 interface AuthSession {
   access_token: string;
@@ -13,16 +12,9 @@ interface AuthSession {
   user: { id: string; email?: string };
 }
 
-interface SignUpResponse extends Partial<AuthSession> {
-  user: { id: string; email?: string };
-}
-
-interface SubscriptionRow {
-  paddle_subscription_id: string;
-  status: string;
-  price_id: string;
-  current_period_ends_at: string | null;
-  scheduled_change_action: string | null;
+export interface CheckoutContext {
+  email: string;
+  checkoutToken: string;
 }
 
 async function errorMessage(response: Response): Promise<string> {
@@ -36,7 +28,7 @@ async function errorMessage(response: Response): Promise<string> {
 
 export class AccountService {
   async signIn(email: string, password: string): Promise<AccountSnapshot> {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    const response = await fetch(`${API_URL}/v1/auth/login`, {
       method: 'POST', headers: this.headers(),
       body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
     });
@@ -46,21 +38,19 @@ export class AccountService {
   }
 
   async signUp(email: string, password: string): Promise<{ account?: AccountSnapshot; needsConfirmation: boolean }> {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    const response = await fetch(`${API_URL}/v1/auth/signup`, {
       method: 'POST', headers: this.headers(),
       body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
     });
     if (!response.ok) throw new Error(await errorMessage(response));
-    const body = await response.json() as SignUpResponse;
-    if (!body.access_token || !body.refresh_token) return { needsConfirmation: true };
-    await this.saveSession(body as AuthSession);
+    await this.saveSession(await response.json() as AuthSession);
     return { account: await this.getAccount(true), needsConfirmation: false };
   }
 
   async signOut(): Promise<void> {
     const session = await this.loadSession();
     if (session) {
-      await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      await fetch(`${API_URL}/v1/auth/logout`, {
         method: 'POST', headers: this.headers(session.access_token),
       }).catch(() => undefined);
     }
@@ -76,36 +66,19 @@ export class AccountService {
 
     const session = await this.validSession();
     if (!session) return this.cache({ user: null, isPro: false, subscription: null });
-    const [userResponse, proResponse, subscriptionResponse] = await Promise.all([
-      fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: this.headers(session.access_token) }),
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/has_pro_access`, { method: 'POST', headers: this.headers(session.access_token), body: '{}' }),
-      fetch(`${SUPABASE_URL}/rest/v1/subscriptions?select=paddle_subscription_id,status,price_id,current_period_ends_at,scheduled_change_action&order=updated_at.desc&limit=1`, { headers: this.headers(session.access_token) }),
-    ]);
-    if (userResponse.status === 401) {
+    const response = await fetch(`${API_URL}/v1/account`, { headers: this.headers(session.access_token) });
+    if (response.status === 401) {
       await this.signOut();
       return this.cache({ user: null, isPro: false, subscription: null });
     }
-    if (!userResponse.ok) throw new Error(await errorMessage(userResponse));
-
-    const rawUser = await userResponse.json() as { id: string; email?: string };
-    const user: AuthUser = { id: rawUser.id, email: rawUser.email ?? session.user.email ?? '' };
-    const isPro = proResponse.ok ? Boolean(await proResponse.json()) : false;
-    let subscription: BillingSubscription | null = null;
-    if (subscriptionResponse.ok) {
-      const row = (await subscriptionResponse.json() as SubscriptionRow[])[0];
-      if (row) subscription = {
-        id: row.paddle_subscription_id, status: row.status, priceId: row.price_id,
-        currentPeriodEndsAt: row.current_period_ends_at,
-        scheduledChangeAction: row.scheduled_change_action,
-      };
-    }
-    return this.cache({ user, isPro, subscription });
+    if (!response.ok) throw new Error(await errorMessage(response));
+    return this.cache(await response.json() as AccountSnapshot);
   }
 
   async createPortalSession(): Promise<string> {
     const session = await this.validSession();
     if (!session) throw new Error('Sign in before managing your subscription.');
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/customer-portal`, {
+    const response = await fetch(`${API_URL}/v1/billing/portal`, {
       method: 'POST', headers: this.headers(session.access_token), body: '{}',
     });
     if (!response.ok) throw new Error(await errorMessage(response));
@@ -114,9 +87,20 @@ export class AccountService {
     return body.url;
   }
 
+  async createCheckoutContext(): Promise<CheckoutContext> {
+    const session = await this.validSession();
+    if (!session) throw new Error('Sign in before upgrading to NoSub Pro.');
+    const response = await fetch(`${API_URL}/v1/billing/checkout-context`, {
+      method: 'POST', headers: this.headers(session.access_token), body: '{}',
+    });
+    if (!response.ok) throw new Error(await errorMessage(response));
+    const body = await response.json() as { email?: string; checkout_token?: string };
+    if (!body.email || !body.checkout_token) throw new Error('Unable to create a secure checkout link.');
+    return { email: body.email, checkoutToken: body.checkout_token };
+  }
+
   private headers(accessToken?: string): Record<string, string> {
     return {
-      apikey: SUPABASE_KEY,
       ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
       'content-type': 'application/json',
     };
@@ -136,7 +120,7 @@ export class AccountService {
     const session = await this.loadSession();
     if (!session) return null;
     if ((session.expires_at ?? 0) > Math.floor(Date.now() / 1000) + 60) return session;
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    const response = await fetch(`${API_URL}/v1/auth/refresh`, {
       method: 'POST', headers: this.headers(), body: JSON.stringify({ refresh_token: session.refresh_token }),
     });
     if (!response.ok) {

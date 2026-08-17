@@ -19,6 +19,7 @@ export interface ListeningUIOptions {
   shadow: ShadowRoot;
   controller: SessionController;
   dictionarySource?: UserSettings['dictionarySource'];
+  definitionLanguage?: string;
 }
 
 export class ListeningUI {
@@ -32,6 +33,7 @@ export class ListeningUI {
   /** 弹层打开时的 cue / 单词, 用于重绘后恢复高亮与锚点 */
   private popupCueId: string | null = null;
   private activeWord: string | null = null;
+  private prefetchedCueId: string | null = null;
 
   constructor(opts: ListeningUIOptions) {
     this.shadow = opts.shadow;
@@ -39,6 +41,7 @@ export class ListeningUI {
     this.popup = new WordPopup(
       opts.controller.getState().interfaceLanguage ?? 'en',
       opts.dictionarySource ?? 'public',
+      opts.definitionLanguage ?? 'en',
     );
 
     this.shadow.innerHTML = '';
@@ -57,7 +60,7 @@ export class ListeningUI {
   dispose(): void {
     this.unsub?.();
     this.unsub = null;
-    this.popup.dismiss();
+    this.popup.dispose();
     this.shadow.innerHTML = '';
   }
 
@@ -74,6 +77,20 @@ export class ListeningUI {
     if (state.activeCue) {
       this.currentCueText = state.activeCue.text;
       this.currentCueId = state.activeCue.id;
+      if (state.activeCue.id !== this.prefetchedCueId) {
+        this.prefetchedCueId = state.activeCue.id;
+        const priorityCues = this.controller.getCueWindow(state.activeCue.id, 3, 3);
+        const fullWindow = this.controller.getCueWindow(state.activeCue.id, 5, 15);
+        const priorityIds = new Set(priorityCues.map((cue) => cue.id));
+        // 当前句最先，其次前后三句；外围窗口等高优先级队列完成后再处理。
+        this.popup.prefetch(
+          [
+            state.activeCue.text,
+            ...priorityCues.filter((cue) => cue.id !== state.activeCue!.id).map((cue) => cue.text),
+          ],
+          fullWindow.filter((cue) => !priorityIds.has(cue.id)).map((cue) => cue.text),
+        );
+      }
     } else {
       this.currentCueId = null;
     }
@@ -83,6 +100,7 @@ export class ListeningUI {
       revealLevel: state.revealLevel,
       isRepeating: state.isRepeating,
       translationAvailable: state.translationAvailable,
+      isPro: state.isPro,
       locale: state.interfaceLanguage,
     });
 
@@ -94,7 +112,6 @@ export class ListeningUI {
       errorMessage: state.errorMessage,
       locale: state.interfaceLanguage,
       translationSuggestion: state.translationSuggestion,
-      isPro: state.isPro === true,
     });
 
     this.root.innerHTML = cueHtml + barHtml;
@@ -157,7 +174,7 @@ export class ListeningUI {
       'next': () => c.requestNext(),
       'toggle-rate': () => c.togglePlaybackRate(),
       'exit-loop': () => c.requestNext(),
-      'open-upgrade': () => void chrome.runtime.openOptionsPage(),
+      'open-upgrade': () => void chrome.runtime.sendMessage({ type: 'billing:open-upgrade' }),
       'open-options': () => void chrome.runtime.openOptionsPage(),
     };
     for (const [action, fn] of Object.entries(map)) {

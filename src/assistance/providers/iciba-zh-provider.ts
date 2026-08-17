@@ -6,6 +6,7 @@
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../definition-provider.js';
 import { buildCleanZhLines, canonPos } from '../zh-gloss-quality.js';
 import { logger } from '../../shared/logger.js';
+import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict-iciba');
 const API = 'https://dict-mobile.iciba.com/interface/index.php';
@@ -30,9 +31,9 @@ export class IcibaZhProvider implements DefinitionProvider {
     try {
       const url =
         `${API}?c=word&m=getsuggest&nums=1&is_need_mean=1&word=${encodeURIComponent(clean)}`;
-      const resp = await fetch(url, { signal: AbortSignal.timeout(4500) });
-      if (!resp.ok) return null;
-      const data = (await resp.json()) as { message?: IcibaMessage[] };
+      const resp = await proxyFetch('dict-fetch', url, 5000);
+      if (!resp.ok || !resp.body) return null;
+      const data = resp.body as { message?: IcibaMessage[] };
       const item = data.message?.[0];
       if (!item?.means?.length) return null;
 

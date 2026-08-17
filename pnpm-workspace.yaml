@@ -1,5 +1,6 @@
 packages:
   - billing-site
+  - server
 
 allowBuilds:
   esbuild: true

@@ -13,6 +13,8 @@ export interface SubtitleDisplayProps {
   revealLevel: RevealLevel;
   isRepeating: boolean;
   translationAvailable: boolean;
+  /** undefined 表示账号权限仍在加载。 */
+  isPro?: boolean;
   locale?: AppLocale;
 }
 
@@ -21,7 +23,7 @@ export interface SubtitleDisplayProps {
  * @returns HTML 字符串, 无字幕时返回 ''。
  */
 export function renderSubtitle(props: SubtitleDisplayProps): string {
-  const { cue, revealLevel, isRepeating, translationAvailable, locale = 'en' } = props;
+  const { cue, revealLevel, isRepeating, translationAvailable, isPro, locale = 'en' } = props;
   const hasCue = !!cue;
 
   // 挡位 0 + normal: 不显示
@@ -39,7 +41,12 @@ export function renderSubtitle(props: SubtitleDisplayProps): string {
 
   // 挡位 2: 翻译行
   if (revealLevel >= 2) {
-    if (cue!.translatedText) {
+    if (isPro === false) {
+      html += `<div class="nosub-cue-line translated nosub-translation-pro">` +
+        `<span>${escapeHtml(t('translationIsPro', locale))}</span>` +
+        `<button class="nosub-translation-upgrade" data-action="open-upgrade">${escapeHtml(t('upgrade', locale))}</button>` +
+        `</div>`;
+    } else if (cue!.translatedText) {
       html += `<div class="nosub-cue-line translated">${escapeHtml(cue!.translatedText!)}</div>`;
     } else {
       let msg: string;

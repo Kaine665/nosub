@@ -8,13 +8,16 @@
 
 import type { DefinitionProvider, DefinitionResult } from './definition-provider.js';
 import { DictionaryApiProvider } from './providers/dictionary-api-provider.js';
-import { GoogleCnProvider } from './providers/google-cn-provider.js';
 import { DictionaryServerProvider } from './providers/dictionary-server-provider.js';
 import { IcibaZhProvider } from './providers/iciba-zh-provider.js';
 import { YoudaoZhProvider } from './providers/youdao-zh-provider.js';
 import type { UserSettings } from '../shared/types.js';
 
 export type DictLocale = 'en' | 'zh_CN';
+
+function isChinese(language: string): boolean {
+  return language.toLowerCase().replace('_', '-').startsWith('zh');
+}
 
 export class CompositeProvider implements DefinitionProvider {
   readonly name: string;
@@ -51,7 +54,7 @@ export class DictionaryRouter {
     // Public Chinese dictionaries are tried in quality order. The NoSub
     // server is the final fallback, or the only source in server-only mode.
     this.zhPrimary = new CompositeProvider(source === 'public'
-      ? [new IcibaZhProvider(), new YoudaoZhProvider(), new GoogleCnProvider(), serverZh]
+      ? [new IcibaZhProvider(), new YoudaoZhProvider(), serverZh]
       : [serverZh]);
   }
 
@@ -62,5 +65,12 @@ export class DictionaryRouter {
 
   getReferenceProvider(): DefinitionProvider {
     return this.enPrimary;
+  }
+
+  /** 返回原生双语词典；null 表示该语言应使用英文释义机器翻译兜底。 */
+  getNativeProvider(language: string): DefinitionProvider | null {
+    if (language.toLowerCase().startsWith('en')) return this.enPrimary;
+    if (isChinese(language)) return this.zhPrimary;
+    return null;
   }
 }

@@ -6,8 +6,8 @@
  * 内置 mini 词典覆盖最常用的 ~500 词, 确保离线也能用。
  */
 
-import { safeFetch } from '../shared/fetch-utils.js';
 import { logger } from '../shared/logger.js';
+import { proxyFetch } from '../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict');
 
@@ -57,7 +57,6 @@ interface DictApiEntry {
 // ---- 配置 ----
 
 const ONLINE_API = 'https://api.dictionaryapi.dev/api/v2/entries/en';
-const ONLINE_TIMEOUT_MS = 4000;
 
 // ---- 内置 mini 词典 (最常用 ~500 词, 确保离线不空) ----
 
@@ -527,19 +526,9 @@ export class DictionaryService {
     try {
       const url = `${ONLINE_API}/${encodeURIComponent(word)}`;
 
-      // 优先走 SW 代理（绕 YouTube CSP + 国内被墙）
-      let data: DictApiEntry[] | null = null;
-      try {
-        const resp = await chrome.runtime.sendMessage({ type: 'dict-fetch', url });
-        if (resp?.ok && resp.body) data = resp.body as DictApiEntry[];
-      } catch { /* SW 不通就 fallback */ }
-
-      // SW 失败 → content script 直连兜底
-      if (!data) {
-        const r = await safeFetch(url, { timeoutMs: ONLINE_TIMEOUT_MS });
-        if (r) data = (await r.json()) as DictApiEntry[];
-      }
-      if (!data) return null;
+      const resp = await proxyFetch('dict-fetch', url, 4500);
+      if (!resp.ok || !resp.body) return null;
+      const data = resp.body as DictApiEntry[];
 
       const entry = data?.[0];
       if (!entry) return null;

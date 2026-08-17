@@ -15,24 +15,11 @@ const ENDPOINT = 'https://translate.googleapis.com/translate_a/single';
 const TIMEOUT_MS = 5000;
 
 /**
- * 带兜底的 fetch: 先试 SW 代理, 失败再试直连。
- * SW 被 Chrome 杀掉后 sendMessage 会超时, 这时直连可能因为 host_permissions 而成功。
+ * 经 SW 代理，避免 content script 回退直连时触发 YouTube 页面 CORS。
  */
 async function resilientFetch(url: string): Promise<{ ok: boolean; body: unknown | null; status: number }> {
-  // 1. SW 代理
   try {
-    const resp = await proxyFetch('translate-fetch', url, TIMEOUT_MS);
-    if (resp.ok) return resp;
-  } catch { /* SW 可能已死 */ }
-
-  // 2. 直连兜底(host_permissions 在, 部分 CORS 请求能成功)
-  try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (r.ok) {
-      const text = await r.text();
-      return { ok: true, body: text, status: r.status };
-    }
-    return { ok: false, body: null, status: r.status };
+    return await proxyFetch('translate-fetch', url, TIMEOUT_MS);
   } catch {
     return { ok: false, body: null, status: 0 };
   }

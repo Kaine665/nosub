@@ -87,7 +87,14 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
     // UI 挂载
     const shadow = mountAppContainer();
     if (shadow) {
-      runtime.ui = new ListeningUI({ shadow, controller, dictionarySource: saved.dictionarySource });
+      runtime.ui = new ListeningUI({
+        shadow,
+        controller,
+        dictionarySource: saved.dictionarySource,
+        definitionLanguage: saved.translationLanguage === 'off'
+          ? 'en'
+          : (saved.translationLanguage ?? 'en'),
+      });
     }
 
     // 键盘

@@ -13,6 +13,36 @@ const config = {
   },
 };
 const signedInEmail = new URLSearchParams(window.location.hash.slice(1)).get('email')?.trim() ?? '';
+const checkoutToken = new URLSearchParams(window.location.hash.slice(1)).get('checkout_token') ?? '';
+const API_URL = 'https://api-nosub.43-130-246-125.sslip.io';
+const VISITOR_KEY = 'nosub-anonymous-visitor-v1';
+
+function anonymousVisitorId(): string {
+  const existing = localStorage.getItem(VISITOR_KEY);
+  if (existing) return existing;
+  const created = crypto.randomUUID();
+  localStorage.setItem(VISITOR_KEY, created);
+  return created;
+}
+
+function trackPageView(): void {
+  const query = new URLSearchParams(window.location.search);
+  let referrerHost = '';
+  try { referrerHost = document.referrer ? new URL(document.referrer).hostname : ''; } catch { /* ignore */ }
+  void fetch(`${API_URL}/v1/analytics/events`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({
+      event_name: 'page_view', anonymous_id: anonymousVisitorId(), path: window.location.pathname,
+      referrer_host: referrerHost || null,
+      utm_source: query.get('utm_source'), utm_medium: query.get('utm_medium'),
+      utm_campaign: query.get('utm_campaign'),
+    }),
+  }).catch(() => undefined);
+}
+
+trackPageView();
 
 for (const [key, value] of Object.entries(config)) {
   if (!value) throw new Error(`Missing required Paddle configuration: ${key}`);
@@ -95,13 +125,13 @@ app.innerHTML = `
         </article>
 
         <article class="plan value-plan">
-          <div class="value-badge">Best value · Save 47%</div>
+            <div class="value-badge">Best value · Save 35%</div>
           <div>
             <p class="plan-label">Make it count</p>
             <h3>Yearly</h3>
             <p class="plan-description">The lowest monthly price for committed learners.</p>
             <div class="price loading" data-price="year"><strong>—</strong><span>Loading local price…</span></div>
-            <p class="billing-note">Save 47% compared with monthly billing.</p>
+            <p class="billing-note">Save 35% compared with monthly billing.</p>
           </div>
           <ul>
             <li>Unlimited instant translation</li>
@@ -173,10 +203,15 @@ async function updatePrice(cycle: BillingCycle): Promise<void> {
 
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-subscribe]')) {
   button.addEventListener('click', () => {
+    if (!signedInEmail || !checkoutToken) {
+      window.alert('Open this pricing page from the NoSub extension after signing in, so your Pro access can be activated securely.');
+      return;
+    }
     const cycle = button.dataset.subscribe as BillingCycle;
     paddle?.Checkout.open({
       items: [{ priceId: config.prices[cycle], quantity: 1 }],
-      ...(signedInEmail ? { customer: { email: signedInEmail } } : {}),
+      customer: { email: signedInEmail },
+      customData: { nosub_checkout_token: checkoutToken },
       settings: {
         displayMode: 'overlay',
         variant: 'one-page',

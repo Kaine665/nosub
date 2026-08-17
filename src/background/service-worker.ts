@@ -8,6 +8,8 @@
 import { logger } from '../shared/logger.js';
 import { AccountService } from '../auth/account-service.js';
 import type { AccountRequest, AccountResponse } from '../auth/types.js';
+import { buildBillingUrl } from '../shared/billing.js';
+import { isAllowedBackgroundFetch, type BackgroundFetchType } from './fetch-policy.js';
 
 const log = logger.createLogger('sw');
 const accountService = new AccountService();
@@ -27,6 +29,17 @@ interface BackgroundResponse {
   error?: string;
 }
 
+function rejectDisallowedFetch(
+  type: BackgroundFetchType,
+  url: string,
+  sendResponse: (resp: BackgroundResponse) => void,
+): boolean {
+  if (isAllowedBackgroundFetch(type, url)) return false;
+  log.warn('blocked proxy fetch:', type, url.slice(0, 120));
+  sendResponse({ ok: false, status: 403, body: null, error: 'URL is not allowed' });
+  return true;
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   const chunk = 0x8000;
@@ -38,6 +51,22 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 chrome.runtime.onMessage.addListener(
   (request: BackgroundRequest, _sender, sendResponse: (resp: BackgroundResponse | AccountResponse) => void) => {
+    if (request.type === 'billing:open-upgrade') {
+      void (async () => {
+        try {
+          const context = await accountService.createCheckoutContext();
+          await chrome.tabs.create({ url: buildBillingUrl(context.email, context.checkoutToken) });
+          sendResponse({ ok: true });
+        } catch (error) {
+          await chrome.runtime.openOptionsPage();
+          sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
+        }
+      })().catch((error) => {
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
+      });
+      return true;
+    }
+
     if (request.type.startsWith('account:')) {
       void (async () => {
         try {
@@ -62,12 +91,25 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (request.type === 'translate-fetch' || request.type === 'dict-fetch') {
+      if (rejectDisallowedFetch(request.type, request.url, sendResponse)) return false;
       log.debug('proxy fetch:', request.url.slice(0, 80));
       fetch(request.url)
         .then(async (resp) => {
-          const body = request.type === 'translate-fetch'
-            ? await resp.text()  // Google Translate 返回非标准 JSON
-            : await resp.json();
+          const rawBody = await resp.text();
+          let body: unknown = rawBody;
+          if (request.type === 'dict-fetch') {
+            try {
+              body = rawBody ? JSON.parse(rawBody) : null;
+            } catch {
+              sendResponse({
+                ok: false,
+                status: resp.status,
+                body: null,
+                error: `Invalid JSON response (HTTP ${resp.status})`,
+              });
+              return;
+            }
+          }
           sendResponse({ ok: resp.ok, status: resp.status, body });
         })
         .catch((err) => {
@@ -77,6 +119,7 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (request.type === 'audio-fetch') {
+      if (rejectDisallowedFetch(request.type, request.url, sendResponse)) return false;
       log.debug('audio fetch:', request.url.slice(0, 80));
       fetch(request.url)
         .then(async (resp) => {

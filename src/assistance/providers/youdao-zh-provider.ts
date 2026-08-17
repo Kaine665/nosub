@@ -6,6 +6,7 @@
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../definition-provider.js';
 import { buildCleanZhLines } from '../zh-gloss-quality.js';
 import { logger } from '../../shared/logger.js';
+import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict-youdao');
 const API = 'https://dict.youdao.com/jsonapi';
@@ -31,9 +32,9 @@ export class YoudaoZhProvider implements DefinitionProvider {
 
     try {
       const url = `${API}?${new URLSearchParams({ q: clean, le: 'en' }).toString()}`;
-      const resp = await fetch(url, { signal: AbortSignal.timeout(4500) });
-      if (!resp.ok) return null;
-      const data = (await resp.json()) as {
+      const resp = await proxyFetch('dict-fetch', url, 5000);
+      if (!resp.ok || !resp.body) return null;
+      const data = resp.body as {
         ec?: { word?: YoudaoWord[] };
         fanyi?: { tran?: string };
       };

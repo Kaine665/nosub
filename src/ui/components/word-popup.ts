@@ -5,13 +5,14 @@
  * 音标/音频始终来自英文词典源。
  */
 
-import { DictionaryRouter, type DictLocale } from '../../assistance/dictionary-router.js';
+import { DictionaryRouter } from '../../assistance/dictionary-router.js';
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../../assistance/definition-provider.js';
 import type { UserSettings } from '../../shared/types.js';
 import { buildCleanZhLines } from '../../assistance/zh-gloss-quality.js';
 import { escapeHtml } from '../../shared/html-utils.js';
 import { t, type AppLocale } from '../../shared/i18n.js';
 import { proxyFetch } from '../../shared/proxy-fetch.js';
+import { GoogleCnProvider } from '../../assistance/providers/google-cn-provider.js';
 
 const CARD = { width: 380 };
 const GAP_ABOVE_CUE = 10; // 卡片底边与字幕顶边的间距
@@ -22,6 +23,25 @@ const YOUDAO_AUDIO = 'https://dict.youdao.com/dictvoice';
 const MAX_SENSES = 4;
 const MAX_EXAMPLES = 2;
 const MAX_EXAMPLE_LEN = 110;
+const PREFETCH_CONCURRENCY = 3;
+const MAX_DEFINITION_CACHE = 500;
+
+interface DefinitionLookup {
+  enResult: DefinitionResult | null;
+  langResult: DefinitionResult | null;
+}
+
+/** 与字幕里的可点击单词规则保持一致，并跨句去重。 */
+export function extractLookupWords(texts: readonly string[]): string[] {
+  const words = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/[A-Za-z]+(?:['-][A-Za-z]+)*/g)) {
+      const word = match[0].toLowerCase();
+      if (word.length >= 2) words.add(word);
+    }
+  }
+  return [...words];
+}
 
 /** Lucide-style icons (inline SVG, no CDN / CSP issues on YouTube) */
 const ICON_VOLUME = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
@@ -250,7 +270,8 @@ export class WordPopup {
   /** EN 参考 Provider (始终提供音标/发音) */
   private refProvider: DefinitionProvider;
   /** 用户语言 Provider (提供释义) */
-  private langProvider: DefinitionProvider;
+  private langProvider: DefinitionProvider | null;
+  private fallbackTranslator: GoogleCnProvider | null;
   private audio: HTMLAudioElement | null = null;
   private blobUrl: string | null = null;
   private anchor: PopupAnchor | null = null;
@@ -260,22 +281,66 @@ export class WordPopup {
   private onEsc: ((ev: KeyboardEvent) => void) | null = null;
   /** 递增以作废进行中的异步查词, 防止快切单词写错卡片 */
   private lookupGen = 0;
-  private locale: DictLocale;
+  private locale: AppLocale;
+  private definitionLanguage: string;
   /** 当前查词，用于发音服务器兜底 */
   private currentWord = '';
+  private definitionCache = new Map<string, Promise<DefinitionLookup>>();
+  private exampleCache = new Map<string, Promise<string[]>>();
+  private priorityQueue: string[] = [];
+  private deferredQueue: string[] = [];
+  private priorityWords = new Set<string>();
+  private pendingWords = new Map<string, Promise<void>>();
+  private completedWords = new Set<string>();
+  private activePrefetches = 0;
+  private disposed = false;
 
   constructor(
-    locale: DictLocale = 'en',
+    locale: AppLocale = 'en',
     dictionarySource: UserSettings['dictionarySource'] = 'public',
+    definitionLanguage = 'en',
   ) {
     const router = new DictionaryRouter(dictionarySource);
     this.locale = locale;
-    this.langProvider = router.getProvider(locale);
+    this.definitionLanguage = definitionLanguage;
+    this.langProvider = router.getNativeProvider(definitionLanguage);
     this.refProvider = router.getReferenceProvider();
+    const needsTranslation = !definitionLanguage.toLowerCase().startsWith('en') && !this.langProvider;
+    this.fallbackTranslator = needsTranslation ? new GoogleCnProvider(definitionLanguage) : null;
   }
 
   get isOpen(): boolean {
     return this.el !== null;
+  }
+
+  /**
+   * 异步预取两级字幕窗口里的定义和例句。
+   * 每次切句都会重排尚未开始的任务，保证新窗口的前后三句优先。
+   */
+  prefetch(priorityCueTexts: readonly string[], deferredCueTexts: readonly string[] = []): void {
+    if (this.disposed) return;
+    const priorityWords = extractLookupWords(priorityCueTexts);
+    const prioritySet = new Set(priorityWords);
+    const deferredWords = extractLookupWords(deferredCueTexts)
+      .filter((word) => !prioritySet.has(word));
+
+    // 丢弃旧窗口中尚未启动的任务；正在执行的 Promise 不强行中断。
+    this.priorityWords = new Set(priorityWords);
+    this.priorityQueue = priorityWords.filter((word) => !this.isWordScheduled(word));
+    this.deferredQueue = deferredWords.filter((word) => !this.isWordScheduled(word));
+    this.drainPrefetchQueue();
+  }
+
+  dispose(): void {
+    this.disposed = true;
+    this.priorityQueue = [];
+    this.deferredQueue = [];
+    this.priorityWords.clear();
+    this.pendingWords.clear();
+    this.completedWords.clear();
+    this.definitionCache.clear();
+    this.exampleCache.clear();
+    this.dismiss();
   }
 
   /**
@@ -300,15 +365,14 @@ export class WordPopup {
     this.place();
     this.bindReposition();
 
-    // 并行: EN 参考(音标/例句) + 用户语言释义 + Tatoeba
-    Promise.all([
-      this.refProvider.lookup(word),   // enResult — EN 参考数据(音标/发音)
-      this.locale === 'en'
-        ? Promise.resolve(null)
-        : this.langProvider.lookup(word), // langResult — 用户语言释义
-      this.fetchTatoeba(word),         // tatoeba 例句
-      this.fetchServerExamples(word),  // 服务器例句兜底
-    ]).then(async ([enResult, langResult, tatoeba, serverExs]) => {
+    const clean = word.toLowerCase();
+    // 点击也进入同一个任务表：调度器能等待该高优先级词真正完成。
+    void this.ensureCompleteLookup(clean);
+    const definitionPromise = this.lookupDefinitions(clean);
+    const examplesPromise = this.lookupExamples(clean);
+
+    // 释义优先渲染；例句不再阻塞卡片首屏。
+    definitionPromise.then(({ enResult, langResult }) => {
       if (gen !== this.lookupGen || !this.el) return;
       const b = this.el.querySelector('[data-card-body]') as HTMLElement | null;
       if (!b) return;
@@ -323,11 +387,126 @@ export class WordPopup {
         langResult?.entries ?? null,
         enResult,
         cueText,
-        [...tatoeba, ...serverExs],
+        [],
       );
       this.bindAudio(b);
       this.place();
     });
+
+    // 例句返回后再静默补齐；重复点击同一词直接命中缓存。
+    Promise.all([definitionPromise, examplesPromise]).then(([
+      { enResult, langResult }, examples,
+    ]) => {
+      if (gen !== this.lookupGen || !this.el || (!enResult && !langResult)) return;
+      const b = this.el.querySelector('[data-card-body]') as HTMLElement | null;
+      if (!b) return;
+      b.innerHTML = this.render(
+        enResult?.entries ?? null,
+        langResult?.entries ?? null,
+        enResult,
+        cueText,
+        examples,
+      );
+      this.bindAudio(b);
+      this.place();
+    });
+  }
+
+  private lookupDefinitions(word: string): Promise<DefinitionLookup> {
+    const cached = this.definitionCache.get(word);
+    if (cached) {
+      // Map 插入顺序作为轻量 LRU。
+      this.definitionCache.delete(word);
+      this.definitionCache.set(word, cached);
+      return cached;
+    }
+
+    const enPromise = this.refProvider.lookup(word);
+    const langPromise = this.definitionLanguage.toLowerCase().startsWith('en')
+      ? Promise.resolve(null)
+      : this.langProvider
+        ? this.langProvider.lookup(word)
+        : enPromise.then((enResult) => enResult && this.fallbackTranslator
+          ? this.fallbackTranslator.translate(enResult)
+          : null);
+    const lookup = Promise.all([enPromise, langPromise]).then(([enResult, langResult]) => {
+      const result = { enResult, langResult };
+      // 网络瞬断不能把“空定义”永久毒化缓存；下次点击或窗口更新应重试。
+      if (!enResult && !langResult) this.definitionCache.delete(word);
+      return result;
+    });
+    this.definitionCache.set(word, lookup);
+    while (this.definitionCache.size > MAX_DEFINITION_CACHE) {
+      const oldest = this.definitionCache.keys().next().value as string | undefined;
+      if (!oldest) break;
+      this.definitionCache.delete(oldest);
+    }
+    return lookup;
+  }
+
+  private lookupExamples(word: string): Promise<string[]> {
+    const cached = this.exampleCache.get(word);
+    if (cached) return cached;
+    const lookup = Promise.all([
+      this.fetchTatoeba(word),
+      this.fetchServerExamples(word),
+    ]).then(([tatoeba, server]) => [...tatoeba, ...server]);
+    this.exampleCache.set(word, lookup);
+    while (this.exampleCache.size > MAX_DEFINITION_CACHE) {
+      const oldest = this.exampleCache.keys().next().value as string | undefined;
+      if (!oldest) break;
+      this.exampleCache.delete(oldest);
+    }
+    return lookup;
+  }
+
+  private isWordReady(word: string): boolean {
+    return this.completedWords.has(word)
+      && this.definitionCache.has(word)
+      && this.exampleCache.has(word);
+  }
+
+  private isWordScheduled(word: string): boolean {
+    return this.pendingWords.has(word) || this.isWordReady(word);
+  }
+
+  private ensureCompleteLookup(word: string): Promise<void> {
+    const pending = this.pendingWords.get(word);
+    if (pending) return pending;
+    if (this.isWordReady(word)) return Promise.resolve();
+    this.completedWords.delete(word);
+
+    const task = Promise.all([
+      this.lookupDefinitions(word),
+      this.lookupExamples(word),
+    ]).then(() => undefined, () => undefined).finally(() => {
+      this.pendingWords.delete(word);
+      this.completedWords.add(word);
+      this.drainPrefetchQueue();
+    });
+    this.pendingWords.set(word, task);
+    return task;
+  }
+
+  private drainPrefetchQueue(): void {
+    while (!this.disposed && this.activePrefetches < PREFETCH_CONCURRENCY) {
+      let word = this.priorityQueue.shift();
+      if (!word) {
+        // 严格的优先级屏障：前后三句所有词的定义和例句完成前，不启动外围任务。
+        // “完成”包含成功和本轮失败；失败项不会阻塞外围队列，但也不会污染定义缓存。
+        const priorityDone = [...this.priorityWords].every((item) => this.completedWords.has(item));
+        if (!priorityDone) return;
+        word = this.deferredQueue.shift();
+      }
+      if (!word) return;
+      // 点击可能已经启动或完成了这个词，队列轮到时直接跳过。
+      if (this.isWordScheduled(word)) continue;
+      this.activePrefetches++;
+      void this.ensureCompleteLookup(word).finally(() => {
+        this.activePrefetches--;
+        this.drainPrefetchQueue();
+      });
+    }
   }
 
   onDismiss: (() => void) | null = null;
@@ -413,9 +592,9 @@ export class WordPopup {
   private async fetchTatoeba(word: string): Promise<string[]> {
     try {
       const url = `${TATOEBA}?query=${encodeURIComponent(word)}&from=eng&to=eng&sort=relevance&limit=4`;
-      const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
-      if (!r.ok) return [];
-      const d = (await r.json()) as { results?: Array<{ text: string }> };
+      const r = await proxyFetch('dict-fetch', url, 4500);
+      if (!r.ok || !r.body) return [];
+      const d = r.body as { results?: Array<{ text: string }> };
       return (d.results ?? []).map(x => x.text).filter(t => t.length < 120);
     } catch { return []; }
   }
@@ -506,14 +685,31 @@ ${interFontFaces()}
     // 音标放进 header
     this.fillPhonetic(enResult);
 
-    const sourceEntries = langEntries ?? enEntries ?? [];
+    const sourceEntries = langEntries?.length ? langEntries : (enEntries ?? []);
     // 中文：统一过质量关卡（禁繁体/粤语/非中文）；英文走原合并逻辑
-    const senseLines = this.locale === 'zh_CN'
+    const isChineseDefinition = this.definitionLanguage.toLowerCase().replace('_', '-').startsWith('zh');
+    let senseLines = isChineseDefinition
       ? buildCleanZhLines(sourceEntries.map((e) => ({
           pos: e.partOfSpeech,
           definition: e.definition,
         }))).map((l) => ({ pos: l.pos, text: l.text }))
-      : buildSenseLines(sourceEntries, this.locale);
+      : buildSenseLines(sourceEntries, 'en');
+
+    // 质量关卡用于整理展示，不能把 Provider 已返回的全部定义静默删光。
+    // 严格规则无结果时保守显示少量原始短义项，至少保证“含义”不空。
+    if (!senseLines.length && sourceEntries.length) {
+      senseLines = sourceEntries
+        .map((entry) => ({
+          pos: canonPos(entry.partOfSpeech) ?? splitPosTokens(entry.partOfSpeech)[0] ?? '',
+          text: preferSimplified(entry.definition || '').replace(/\s+/g, ' ').trim(),
+        }))
+        .filter((line) => {
+          if (!line.text) return false;
+          if (isChineseDefinition) return /[\u4e00-\u9fff]/.test(line.text) && line.text.length <= 48;
+          return line.text.length <= 180;
+        })
+        .slice(0, MAX_SENSES);
+    }
     const p: string[] = [];
 
     // 释义 —— 按词性一行：adv 然而 / conj 虽然;尽管；不合格式已丢弃

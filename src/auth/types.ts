@@ -22,7 +22,8 @@ export type AccountRequest =
   | { type: 'account:sign-up'; email: string; password: string }
   | { type: 'account:get'; refresh?: boolean }
   | { type: 'account:sign-out' }
-  | { type: 'account:create-portal' };
+  | { type: 'account:create-portal' }
+  | { type: 'billing:open-upgrade' };
 
 export type AccountResponse =
   | { ok: true; account?: AccountSnapshot; url?: string; needsConfirmation?: boolean }

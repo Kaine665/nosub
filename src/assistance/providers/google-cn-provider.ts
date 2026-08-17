@@ -1,24 +1,27 @@
 /**
- * 中文翻译提供方 —— Google Translate 免费端点（短词兜底）。
- * 输出必须通过质量关卡，否则视为失败。
+ * Google 释义翻译兜底。
+ * 仅在目标语言没有原生双语词典时，把英文词典释义翻成第二语言。
  */
 
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../definition-provider.js';
 import { buildCleanZhLines } from '../zh-gloss-quality.js';
 import { logger } from '../../shared/logger.js';
+import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict-cn');
 const API = 'https://translate.googleapis.com/translate_a/single';
 
-async function translateText(text: string): Promise<string | null> {
+async function translateText(text: string, targetLanguage: string): Promise<string | null> {
   try {
-    const url = `${API}?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(text)}`;
-    const resp = await fetch(url, {
-      signal: AbortSignal.timeout(5000),
-      headers: { Accept: 'application/json' },
+    const params = new URLSearchParams({
+      client: 'gtx', sl: 'en', tl: targetLanguage, dt: 't', q: text,
     });
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as unknown[][];
+    const url = `${API}?${params.toString()}`;
+    const resp = await proxyFetch('dict-fetch', url, 5500);
+    if (!resp.ok || !resp.body) return null;
+    const data = typeof resp.body === 'string'
+      ? JSON.parse(resp.body) as unknown[][]
+      : resp.body as unknown[][];
     return ((data[0] as Array<[string]> | undefined) ?? [])
       .map((x) => x[0])
       .join('')
@@ -29,8 +32,12 @@ async function translateText(text: string): Promise<string | null> {
 }
 
 export class GoogleCnProvider implements DefinitionProvider {
-  readonly name = 'google-cn';
-  readonly language = 'zh-CN';
+  readonly name = 'google-definition-fallback';
+  readonly language: string;
+
+  constructor(targetLanguage = 'zh-CN') {
+    this.language = targetLanguage;
+  }
 
   async translate(enResult: DefinitionResult): Promise<DefinitionResult | null> {
     const sources = enResult.entries.slice(0, 5);
@@ -39,22 +46,29 @@ export class GoogleCnProvider implements DefinitionProvider {
     try {
       const SEP = '\n---\n';
       const joined = sources.map((e) => e.definition).join(SEP);
-      const cnRaw = await translateText(joined);
-      if (!cnRaw) return null;
+      const translated = await translateText(joined, this.language);
+      if (!translated) return null;
 
-      const cnParts = cnRaw.split(/[-–—]{2,}/).map((s) => s.trim()).filter(Boolean);
+      const translatedParts = translated.split(/[-–—]{2,}/).map((s) => s.trim()).filter(Boolean);
       const raw = sources
-        .slice(0, cnParts.length)
-        .map((e, i) => ({ pos: e.partOfSpeech, definition: cnParts[i] }));
-      const lines = buildCleanZhLines(raw);
-      if (!lines.length) return null;
+        .slice(0, translatedParts.length)
+        .map((e, i) => ({ pos: e.partOfSpeech, definition: translatedParts[i] }));
+      if (!raw.length) return null;
 
-      const entries: DefinitionEntry[] = lines.map((l, i) => ({
-        partOfSpeech: l.pos || sources[i]?.partOfSpeech || '',
-        definition: l.text,
-        example: sources[i]?.example,
-      }));
-      return { language: 'zh-CN', entries };
+      const entries: DefinitionEntry[] = this.language.toLowerCase().startsWith('zh')
+        ? buildCleanZhLines(raw).map((line, i) => ({
+            partOfSpeech: line.pos || sources[i]?.partOfSpeech || '',
+            definition: line.text,
+            example: sources[i]?.example,
+          }))
+        : raw.map((entry, i) => ({
+            partOfSpeech: entry.pos,
+            definition: entry.definition,
+            example: sources[i]?.example,
+          }));
+      if (!entries.length) return null;
+
+      return { language: this.language, entries };
     } catch (err) {
       log.debug('CN translate failed:', (err as Error).message);
       return null;
@@ -62,13 +76,11 @@ export class GoogleCnProvider implements DefinitionProvider {
   }
 
   async lookup(word: string): Promise<DefinitionResult | null> {
-    const text = await translateText(word);
+    const text = await translateText(word, this.language);
     if (!text) return null;
-    const lines = buildCleanZhLines([{ pos: '', definition: text }]);
-    if (!lines.length) return null;
     return {
-      language: 'zh-CN',
-      entries: lines.map((l) => ({ partOfSpeech: l.pos, definition: l.text })),
+      language: this.language,
+      entries: [{ partOfSpeech: '', definition: text }],
     };
   }
 }

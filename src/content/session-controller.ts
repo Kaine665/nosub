@@ -59,9 +59,8 @@ export interface ViewState {
   /** 当前播放速率 */
   playbackRate: number;
   interfaceLanguage: AppLocale;
-  /** null while account status is loading; translation remains available until resolved. */
+  /** undefined while account status is loading. */
   isPro?: boolean;
-  upgradeRequired?: boolean;
   /** Google 翻译不可用时, 推荐的区域兜底方案 */
   translationSuggestion?: { name: string; label: string } | null;
   errorMessage?: string;
@@ -84,7 +83,6 @@ export class SessionController {
   private normalLevel: RevealLevel = 0;
   private loopLevel: RevealLevel = 0;
   private proAccess: boolean | null = null;
-  private upgradeRequired = false;
   private lastView: ViewState = {
     status: 'loading',
     isRepeating: false,
@@ -294,8 +292,7 @@ export class SessionController {
         translationAvailable: this.isTranslationAvailable(),
         playbackRate: this.player.getPlaybackRate(),
         interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
-        isPro: this.proAccess === true,
-        upgradeRequired: this.upgradeRequired,
+        isPro: this.proAccess ?? undefined,
         translationSuggestion: this.getTranslationSuggestion(),
       };
     }
@@ -309,8 +306,7 @@ export class SessionController {
       translationAvailable: this.isTranslationAvailable(),
       playbackRate: this.player.getPlaybackRate(),
       interfaceLanguage: resolveLocale(this.settings.interfaceLanguage),
-      isPro: this.proAccess === true,
-      upgradeRequired: this.upgradeRequired,
+      isPro: this.proAccess ?? undefined,
       translationSuggestion: this.getTranslationSuggestion(),
     };
   }
@@ -353,6 +349,17 @@ export class SessionController {
     return this.track;
   }
 
+  /** 返回当前句附近的字幕窗口，供词典低优先级预取。 */
+  getCueWindow(centerCueId: string, before = 5, after = 15): Cue[] {
+    if (!this.track) return [];
+    const center = this.track.cues.findIndex((cue) => cue.id === centerCueId);
+    if (center < 0) return [];
+    return this.track.cues.slice(
+      Math.max(0, center - Math.max(0, before)),
+      Math.min(this.track.cues.length, center + Math.max(0, after) + 1),
+    );
+  }
+
   /** 更新设置(T13 持久化加载时调用) */
   updateSettings(settings: Partial<UserSettings>): void {
     this.settings = { ...this.settings, ...settings };
@@ -365,11 +372,11 @@ export class SessionController {
   /** Apply the account entitlement loaded by the extension background. */
   setProAccess(isPro: boolean): void {
     this.proAccess = isPro;
-    if (!isPro) {
-      if (this.normalLevel === 2) this.normalLevel = 1;
-      if (this.loopLevel === 2) this.loopLevel = 1;
-    }
     this.emit(this.deriveState());
+    // 用户可能在账号状态返回前已切到翻译挡；确认 Pro 后立即加载。
+    if (isPro && this.getActiveLevel() === 2 && this.session?.activeCueId) {
+      this.prefetchTranslations(this.session.activeCueId);
+    }
   }
 
   private isTranslationAvailable(): boolean {
@@ -396,7 +403,7 @@ export class SessionController {
    * 当前 cue 优先,其余后台静默加载。
    */
   private prefetchTranslations(centerCueId: string): void {
-    if (!this.track || !this.isTranslationAvailable()) return;
+    if (!this.track || this.proAccess !== true || !this.isTranslationAvailable()) return;
 
     const cues = this.track.cues;
     const centerIdx = cues.findIndex((c) => c.id === centerCueId);
@@ -417,7 +424,7 @@ export class SessionController {
 
   /** 翻译单条 cue,成功/失败后如果是 active cue 则重新 emit */
   private async translateOne(cue: Cue): Promise<void> {
-    if (cue.translatedText || cue.translationFailed || !this.isTranslationAvailable()) return;
+    if (cue.translatedText || cue.translationFailed || this.proAccess !== true || !this.isTranslationAvailable()) return;
 
     try {
       const result = await this.translation.translate({

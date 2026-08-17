@@ -18,6 +18,8 @@ describe('DictionaryRouter', () => {
     const router = new DictionaryRouter('public');
     expect(router.getProvider('en').name).toBe('dictionaryapi');
     expect(router.getProvider('zh_CN').name).toBe('iciba-zh');
+    expect(router.getNativeProvider('zh-CN')?.name).toBe('iciba-zh');
+    expect(router.getNativeProvider('ja')).toBeNull();
   });
 
   it('服务器模式不会选择公共来源', () => {

@@ -13,6 +13,7 @@ function makeMockController(state: Partial<ViewState>) {
   return {
     _state: fullState,
     getState: () => fullState,
+    getCueWindow: vi.fn(() => fullState.activeCue ? [fullState.activeCue] : []),
     subscribe: vi.fn((cb: (s: ViewState) => void) => {
       (mockController as unknown as { _emit: (s: ViewState) => void })._emit = cb;
       return () => {};
@@ -38,6 +39,12 @@ function setup(state: Partial<ViewState>): { shadow: ShadowRoot; ui: ListeningUI
 
 beforeEach(() => {
   document.body.innerHTML = '';
+  vi.stubGlobal('chrome', {
+    runtime: {
+      sendMessage: vi.fn().mockResolvedValue({ ok: true }),
+      openOptionsPage: vi.fn().mockResolvedValue(undefined),
+    },
+  });
 });
 
 // ========== 控制栏 ==========
@@ -121,6 +128,26 @@ describe('字幕揭示挡位', () => {
     });
     expect(shadow.textContent).toContain('hello');
     expect(shadow.textContent).toContain('你好世界');
+  });
+
+  it('免费用户的 Pro 提示显示在翻译行，不占用控制栏', () => {
+    const { shadow } = setup({
+      status: 'ready', activeCue: cue, revealLevel: 2,
+      isRepeating: false, translationAvailable: true, isPro: false,
+    });
+    const translationLine = shadow.querySelector('.nosub-cue-line.translated');
+    expect(translationLine?.textContent).toContain('Translation is a Pro feature');
+    expect(translationLine?.querySelector('[data-action="open-upgrade"]')).toBeTruthy();
+    expect(shadow.querySelector('.nosub-bar [data-action="open-upgrade"]')).toBeNull();
+  });
+
+  it('点击翻译行升级按钮会直接请求打开套餐页', () => {
+    const { shadow } = setup({
+      status: 'ready', activeCue: cue, revealLevel: 2,
+      isRepeating: false, translationAvailable: true, isPro: false,
+    });
+    (shadow.querySelector('[data-action="open-upgrade"]') as HTMLElement).click();
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'billing:open-upgrade' });
   });
 
   it('挡位 2 无翻译: 英文界面显示 translation off 占位', () => {

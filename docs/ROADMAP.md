@@ -1,5 +1,7 @@
 # nosub 产品路线图
 
+> 本文件保留为 2026-08-04 时的历史版本规划。当前产品投入顺序和状态以 `product/strategy/roadmap.md` 为准；具体产品变化以 `product/initiatives/` 为准。
+
 > 最后更新: 2026-08-04
 > 当前版本: v0.3.0 (beta)
 

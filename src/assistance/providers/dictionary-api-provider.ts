@@ -1,10 +1,11 @@
 /**
  * 英文释义提供方 —— 基于 Free Dictionary API (Wiktionary)。
- * Content script 有 host_permissions, 可直接 fetch。
+ * 请求经 background service worker 代发，避免 YouTube 页面 CORS 限制。
  */
 
 import type { DefinitionProvider, DefinitionEntry, DefinitionResult } from '../definition-provider.js';
 import { logger } from '../../shared/logger.js';
+import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict-en');
 const API = 'https://api.dictionaryapi.dev/api/v2/entries/en';
@@ -18,13 +19,14 @@ export class DictionaryApiProvider implements DefinitionProvider {
     if (!clean || clean.length < 2) return null;
 
     try {
-      const resp = await fetch(`${API}/${encodeURIComponent(clean)}`, {
-        signal: AbortSignal.timeout(4000),
-        headers: { 'Accept': 'application/json' },
-      });
-      if (!resp.ok) return null;
+      const resp = await proxyFetch(
+        'dict-fetch',
+        `${API}/${encodeURIComponent(clean)}`,
+        4500,
+      );
+      if (!resp.ok || !resp.body) return null;
 
-      const data = (await resp.json()) as Array<{
+      const data = resp.body as Array<{
         phonetic?: string;
         phonetics?: Array<{ text?: string; audio?: string }>;
         meanings?: Array<{

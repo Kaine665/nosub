@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { paddleApiBase } from '../_shared/paddle-environment.ts';
 
 const cors = {
   'access-control-allow-origin': '*',
@@ -57,13 +58,15 @@ Deno.serve(async (request) => {
       .limit(25);
     if (subscriptionsError) throw subscriptionsError;
 
+    const paddleApiKey = requiredEnv('PADDLE_API_KEY');
     const paddleResponse = await fetch(
-      `https://sandbox-api.paddle.com/customers/${customer.paddle_customer_id}/portal-sessions`,
+      `${paddleApiBase(Deno.env.get('PADDLE_ENVIRONMENT'), paddleApiKey)}/customers/${customer.paddle_customer_id}/portal-sessions`,
       {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${requiredEnv('PADDLE_API_KEY')}`,
+          authorization: `Bearer ${paddleApiKey}`,
           'content-type': 'application/json',
+          'paddle-version': '1',
         },
         body: JSON.stringify({
           subscription_ids: (subscriptions ?? []).map((item) => item.paddle_subscription_id),

@@ -73,6 +73,17 @@ describe('SessionController.toggleReveal (S 键)', () => {
     expect(controller.getState().revealLevel).toBe(0);
   });
 
+  it('免费用户也保持 0 → 1 → 2 → 0，不被 Pro 权限强制降档', async () => {
+    const { controller } = await initReady();
+    controller.setProAccess(false);
+    controller.toggleReveal();
+    expect(controller.getState().revealLevel).toBe(1);
+    controller.toggleReveal();
+    expect(controller.getState().revealLevel).toBe(2);
+    controller.toggleReveal();
+    expect(controller.getState().revealLevel).toBe(0);
+  });
+
 });
 
 describe('SessionController.requestLoopBack (A 键)', () => {
@@ -110,6 +121,20 @@ describe('SessionController.subscribe', () => {
     controller.subscribe((s) => states.push(s));
     await controller.init('vid-1');
     expect(states.some((s) => s.status === 'ready')).toBe(true);
+  });
+});
+
+describe('SessionController.getCueWindow', () => {
+  it('返回当前句前 5 句和后 15 句，并在轨道边缘裁剪', async () => {
+    const cues = Array.from({ length: 30 }, (_, i) => ({
+      id: `c${i}`, startMs: i * 1000, endMs: (i + 1) * 1000, text: `word ${i}`,
+    }));
+    const { controller } = await initReady(cues);
+    const window = controller.getCueWindow('c10', 5, 15);
+    expect(window).toHaveLength(21);
+    expect(window[0].id).toBe('c5');
+    expect(window.at(-1)?.id).toBe('c25');
+    expect(controller.getCueWindow('c1', 5, 15)[0].id).toBe('c0');
   });
 });
 

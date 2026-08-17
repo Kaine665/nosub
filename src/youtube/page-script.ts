@@ -40,17 +40,26 @@ function installProxy() {
 
 let panelHidden = false;
 let triggeredButton: HTMLButtonElement | null = null;
+let panelCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
+const TRANSCRIPT_PANEL_SELECTOR = [
+  'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]',
+  'ytd-engagement-panel-section-list-renderer[target-id*="transcript" i]',
+].join(',');
+
+function findTranscriptPanel(): HTMLElement | null {
+  return document.querySelector(TRANSCRIPT_PANEL_SELECTOR) as HTMLElement | null;
+}
 
 function hideTranscriptPanel() {
   if (panelHidden) return;
   panelHidden = true;
   const style = document.createElement('style');
   style.id = 'nosub-hide-panel';
-  // visibility:hidden 而非 display:none —— 保留布局让 YouTube 以为面板还在,不报错
+  // 只隐藏文字记录面板，不能影响评论、播放列表等其他 engagement panel。
   style.textContent = `
-    ytd-engagement-panel-section-list-renderer {
+    ${TRANSCRIPT_PANEL_SELECTOR} {
       visibility: hidden !important;
-      position: absolute !important;
       pointer-events: none !important;
     }
   `;
@@ -62,55 +71,72 @@ function restoreTranscriptPanel() {
   document.getElementById('nosub-hide-panel')?.remove();
 }
 
+function clearPanelCleanupTimer() {
+  if (panelCleanupTimer) {
+    clearTimeout(panelCleanupTimer);
+    panelCleanupTimer = null;
+  }
+}
+
+function finishPanelCleanup() {
+  clearPanelCleanupTimer();
+  triggeredButton = null;
+  restoreTranscriptPanel();
+}
+
+function armPanelCleanup() {
+  clearPanelCleanupTimer();
+  // 即使请求没有返回，也不能让 YouTube 一直保持侧栏打开状态。
+  panelCleanupTimer = setTimeout(() => closeTranscriptPanel(), 2500);
+}
+
+function clickTranscriptCloseButton(panel: HTMLElement): boolean {
+  for (const selector of [
+    'button[aria-label="Close"]',
+    'button[aria-label="关闭"]',
+    'button[aria-label="关闭文字记录"]',
+    '#visibility-button button',
+    'ytd-engagement-panel-title-header-renderer button',
+  ]) {
+    const button = panel.querySelector(selector) as HTMLButtonElement | null;
+    if (button) {
+      button.click();
+      return true;
+    }
+  }
+  return false;
+}
+
 function closeTranscriptPanel() {
-  if (!triggeredButton) return; // 不是我们打开的,不碰
+  if (!triggeredButton && !panelHidden) return; // 不是我们打开的,不碰
 
-  // 策略:延时后尝试关闭。先试已存储的按钮引用,如果失效则重新 query。
+  // 优先点击面板自己的关闭按钮；描述区按钮只作为最后兜底。
   const tryClose = () => {
-    // 确认面板存在(已渲染)
-    const panel = document.querySelector('ytd-engagement-panel-section-list-renderer');
-    if (!panel) return; // 面板还没渲染,等下一轮
-
-    // 方法 1:用存储的按钮引用
-    if (triggeredButton && document.contains(triggeredButton)) {
-      triggeredButton.click();
-      triggeredButton = null;
-      restoreTranscriptPanel();
+    const panel = findTranscriptPanel();
+    if (!panel) {
+      finishPanelCleanup();
       return;
     }
 
-    // 方法 2:按钮引用失效,重新查找并点击
-    const container = document.querySelector('ytd-video-description-transcript-section-renderer');
-    if (container) {
-      const btn = container.querySelector('button') as HTMLButtonElement | null;
-      if (btn) {
-        btn.click();
-        triggeredButton = null;
-        restoreTranscriptPanel();
-        return;
-      }
+    if (clickTranscriptCloseButton(panel)) {
+      finishPanelCleanup();
+      return;
     }
 
-    // 方法 3:直接找 aria-label 按钮
-    for (const sel of [
-      'button[aria-label="显示文字版"]',
-      'button[aria-label="内容转文字"]',
-      'button[aria-label="Show transcript"]',
-      'button[aria-label*="transcript" i]',
-    ]) {
-      const btn = document.querySelector(sel) as HTMLButtonElement | null;
-      if (btn) { btn.click(); break; }
+    if (triggeredButton && document.contains(triggeredButton)) {
+      triggeredButton.click();
+      finishPanelCleanup();
+      return;
     }
-    triggeredButton = null;
-    restoreTranscriptPanel();
+
+    finishPanelCleanup();
   };
 
-  // 先等 300ms 让 YouTube 渲染面板
-  setTimeout(tryClose, 300);
-  // 兜底:800ms 再试一次
+  // 给 YouTube 一点时间渲染面板自己的关闭按钮。
+  setTimeout(tryClose, 100);
   setTimeout(() => {
-    if (triggeredButton) tryClose();
-  }, 800);
+    if (triggeredButton || panelHidden) tryClose();
+  }, 500);
 }
 
 // ---- 第三部分:主动触发 transcript ----
@@ -121,6 +147,7 @@ let triggerTimer: ReturnType<typeof setInterval> | null = null;
 function resetTriggerState() {
   triggerAttempted = false;
   if (triggerTimer) { clearInterval(triggerTimer); triggerTimer = null; }
+  if (triggeredButton || panelHidden) closeTranscriptPanel();
 }
 
 function clickTranscriptButton(): boolean {
@@ -128,7 +155,7 @@ function clickTranscriptButton(): boolean {
   const container = document.querySelector('ytd-video-description-transcript-section-renderer');
   if (container) {
     const btn = container.querySelector('button') as HTMLButtonElement | null;
-    if (btn) { triggeredButton = btn; btn.click(); return true; }
+    if (btn) { triggeredButton = btn; btn.click(); armPanelCleanup(); return true; }
   }
   // 方法 2:aria-label 匹配
   for (const sel of [
@@ -140,7 +167,7 @@ function clickTranscriptButton(): boolean {
     'button[aria-label*="文字记录"]',
   ]) {
     const btn = document.querySelector(sel) as HTMLButtonElement | null;
-    if (btn) { triggeredButton = btn; btn.click(); return true; }
+    if (btn) { triggeredButton = btn; btn.click(); armPanelCleanup(); return true; }
   }
   return false;
 }

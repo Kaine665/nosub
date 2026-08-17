@@ -78,6 +78,24 @@
   color: rgba(255,255,255,0.35);
   font-style: italic;
 }
+.nosub-translation-pro {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(242,240,230,0.78);
+}
+.nosub-translation-upgrade {
+  border: 1px solid rgba(168,139,255,0.48);
+  border-radius: 7px;
+  padding: 5px 11px;
+  color: #f0ebff;
+  background: rgba(121,95,232,0.35);
+  font: 600 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.nosub-translation-upgrade:hover {
+  background: rgba(121,95,232,0.55);
+}
 
 /* ——— 控制栏(Apple 风格) ——— */
 .nosub-bar {
@@ -172,17 +190,6 @@
   background: rgba(220,50,50,0.35);
   border-left: 1px solid rgba(255,255,255,0.1);
 }
-.nosub-upgrade {
-  align-self: stretch;
-  border: 0;
-  border-left: 1px solid rgba(255,255,255,0.1);
-  padding: 0 14px;
-  color: #f0ebff;
-  background: rgba(121,95,232,0.35);
-  font: 600 12px/1 system-ui, sans-serif;
-  cursor: pointer;
-}
-.nosub-upgrade:hover { background: rgba(121,95,232,0.55); }
 .nosub-suggestion {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 14px; margin-top: 6px;
@@ -198,11 +205,6 @@
   color: #ffc107; cursor: pointer;
   font: 600 12px/1 system-ui, sans-serif;
   white-space: nowrap;
-}
-.nosub-suggestion-pro {
-  border-color: rgba(168,139,255,0.4);
-  background: rgba(121,95,232,0.2);
-  color: #c4b5fd;
 }
 .nosub-loop-indicator.visible {
   display: flex;
