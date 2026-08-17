@@ -18,13 +18,13 @@
 
       <section class="card account-card" id="account-card">
         <div class="account-heading">
-          <div class="section-icon account-icon">PRO</div>
-          <div><h2 data-copy="account">Account & plan</h2><p data-copy="accountHelp">Sign in to activate Pro on this browser and manage your subscription.</p></div>
+          <div class="section-icon account-icon">◎</div>
+          <div><h2 data-copy="account">Account</h2><p data-copy="accountHelp">Your sign-in and plan status.</p></div>
           <span class="plan-badge" id="plan-badge">FREE</span>
         </div>
-        <div id="signed-out">
-          <div class="auth-row"><input id="account-email" type="email" autocomplete="email" placeholder="you@example.com" aria-label="Email" /><input id="account-password" type="password" autocomplete="current-password" minlength="6" placeholder="Password" aria-label="Password" /><button class="primary-button" id="sign-in" type="button" data-copy="signIn">Sign in</button><button class="secondary-button" id="sign-up" type="button" data-copy="signUp">Create account</button></div>
-          <p class="account-note" id="auth-note" data-copy="authNote">New here? Create an account, then confirm your email once.</p>
+        <div class="account-summary" id="signed-out">
+          <div><strong data-copy="signedOutTitle">Not signed in</strong><small data-copy="freeNoLogin">Free features work without an account.</small></div>
+          <button class="primary-button" id="open-auth" type="button" data-copy="accountAction">Sign in / create account</button>
         </div>
         <div class="signed-in hidden" id="signed-in">
           <div class="identity"><span class="avatar" id="avatar">N</span><span><strong id="account-email-label"></strong><small id="plan-detail"></small></span></div>
@@ -32,6 +32,24 @@
         </div>
         <p class="account-message" id="account-message" role="status"></p>
       </section>
+
+      <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
+        <form class="auth-panel" id="auth-form" method="dialog">
+          <button class="dialog-close" id="auth-close" type="button" aria-label="Close">×</button>
+          <div class="auth-brand"><span>N</span><div><strong>NoSub</strong><small data-copy="authEyebrow">Account</small></div></div>
+          <h2 id="auth-title">Sign in to NoSub</h2>
+          <p id="auth-subtitle">Continue to sync your Pro access on this browser.</p>
+          <div class="auth-tabs" role="tablist">
+            <button class="auth-tab active" id="sign-in-mode" type="button" role="tab" aria-selected="true" data-copy="signIn">Sign in</button>
+            <button class="auth-tab" id="sign-up-mode" type="button" role="tab" aria-selected="false" data-copy="signUp">Create account</button>
+          </div>
+          <label class="auth-field"><span data-copy="emailLabel">Email</span><input id="account-email" type="email" autocomplete="email" placeholder="you@example.com" required /></label>
+          <label class="auth-field"><span data-copy="passwordLabel">Password</span><input id="account-password" type="password" autocomplete="current-password" minlength="6" required /></label>
+          <p class="auth-message" id="auth-message" role="status"></p>
+          <button class="primary-button auth-submit" id="auth-submit" type="submit">Sign in</button>
+          <p class="auth-footnote" data-copy="authFootnote">Your free listening tools remain available without signing in.</p>
+        </form>
+      </dialog>
 
       <section class="card lead-card">
         <div><h2 data-copy="extension">NoSub on YouTube</h2><p data-copy="extensionHelp">Show the focused-listening controls on supported YouTube videos.</p></div>
