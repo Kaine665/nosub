@@ -1,4 +1,4 @@
-export const BILLING_URL = 'https://kaine665.github.io/nosub/';
+export const BILLING_URL = 'https://kaine665.github.io/nosub/pricing.html';
 
 export function buildBillingUrl(email = '', checkoutToken = ''): string {
   const params = new URLSearchParams();

@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        pricing: resolve(__dirname, 'pricing.html'),
         terms: resolve(__dirname, 'terms.html'),
         privacy: resolve(__dirname, 'privacy.html'),
         refund: resolve(__dirname, 'refund.html'),

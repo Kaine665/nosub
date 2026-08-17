@@ -44,15 +44,10 @@ function trackPageView(): void {
 
 trackPageView();
 
-for (const [key, value] of Object.entries(config)) {
-  if (!value) throw new Error(`Missing required Paddle configuration: ${key}`);
-}
-if (!config.prices.month || !config.prices.quarter || !config.prices.year) {
-  throw new Error('Missing required Paddle price IDs.');
-}
-if (config.environment !== 'sandbox' && config.environment !== 'production') {
-  throw new Error('VITE_PADDLE_ENVIRONMENT must be sandbox or production.');
-}
+const hasPaddleConfig = Boolean(
+  config.token && config.prices.month && config.prices.quarter && config.prices.year
+  && (config.environment === 'sandbox' || config.environment === 'production'),
+);
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('App root not found.');
@@ -64,14 +59,16 @@ app.innerHTML = `
         <span class="brand-mark" aria-hidden="true">N</span>
         <span>NoSub</span>
       </a>
-      <a class="nav-link" href="#pricing">Pricing</a>
+      <a class="nav-link" href="./">Back to NoSub</a>
     </nav>
 
-    <section class="hero shell">
-      <div class="eyebrow"><span></span> Built for focused listeners</div>
-      <h1>Turn real YouTube videos into<br><em>English listening practice.</em></h1>
-      <p>Repeat the moment. Reveal the line. Understand every word.<br>NoSub turns videos you already love into deliberate practice.</p>
-      <a class="hero-cta" href="#pricing">Choose your plan <span aria-hidden="true">↓</span></a>
+    <section class="checkout-hero shell">
+      <div class="eyebrow"><span></span> NoSub Pro</div>
+      <h1>Choose your practice plan.</h1>
+      <p>Every plan unlocks the complete NoSub learning experience. Checkout is securely processed by Paddle.</p>
+      ${signedInEmail && checkoutToken
+        ? `<div class="checkout-session">Ready for checkout as <strong>${signedInEmail.replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</strong></div>`
+        : '<div class="checkout-session warning">To activate Pro automatically, open this page from the NoSub extension after signing in.</div>'}
     </section>
 
     <section class="pricing shell" id="pricing" aria-labelledby="pricing-title">
@@ -98,7 +95,7 @@ app.innerHTML = `
             <li>Learning history and saved words</li>
             <li>All future Pro listening features</li>
           </ul>
-          <button class="button secondary" data-subscribe="month" type="button" disabled>
+          <button class="button secondary" data-subscribe="month" type="button">
             <span>Choose monthly</span><span aria-hidden="true">→</span>
           </button>
         </article>
@@ -118,7 +115,7 @@ app.innerHTML = `
             <li>Learning history and saved words</li>
             <li>All future Pro listening features</li>
           </ul>
-          <button class="button primary" data-subscribe="quarter" type="button" disabled>
+          <button class="button primary" data-subscribe="quarter" type="button">
             <span>Choose 3 months</span><span aria-hidden="true">→</span>
           </button>
           <p class="secure-note">Secure checkout powered by Paddle</p>
@@ -139,24 +136,13 @@ app.innerHTML = `
             <li>Learning history and saved words</li>
             <li>All future Pro listening features</li>
           </ul>
-          <button class="button value-button" data-subscribe="year" type="button" disabled>
+          <button class="button value-button" data-subscribe="year" type="button">
             <span>Choose yearly</span><span aria-hidden="true">→</span>
           </button>
           <p class="secure-note">Secure checkout powered by Paddle</p>
         </article>
       </div>
       <p class="free-note">Not ready for Pro? <a href="https://chromewebstore.google.com/detail/gjdbacmibabccgnjckmgflaomjboibji">Keep using NoSub Free</a> — no card required.</p>
-    </section>
-
-    <section class="promise shell">
-      <p>Real videos. Real voices.</p>
-      <h2>Listening gets better<br>when practice feels real.</h2>
-      <div class="shortcuts" aria-label="NoSub keyboard shortcuts">
-        <div><kbd>A</kbd><span>Repeat</span></div>
-        <div><kbd>S</kbd><span>Reveal</span></div>
-        <div><kbd>D</kbd><span>Next</span></div>
-        <div><kbd>E</kbd><span>Speed</span></div>
-      </div>
     </section>
 
     <footer class="shell">
@@ -208,7 +194,11 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-subscri
       return;
     }
     const cycle = button.dataset.subscribe as BillingCycle;
-    paddle?.Checkout.open({
+    if (!paddle) {
+      window.alert('Secure checkout is still loading. Please try again in a moment.');
+      return;
+    }
+    paddle.Checkout.open({
       items: [{ priceId: config.prices[cycle], quantity: 1 }],
       customer: { email: signedInEmail },
       customData: { nosub_checkout_token: checkoutToken },
@@ -216,18 +206,25 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-subscri
         displayMode: 'overlay',
         variant: 'one-page',
         theme: 'light',
-        successUrl: `${window.location.origin}${import.meta.env.BASE_URL}?checkout=success`,
+        successUrl: `${window.location.origin}${import.meta.env.BASE_URL}pricing.html?checkout=success`,
       },
     });
   });
 }
 
 if (new URLSearchParams(window.location.search).get('checkout') === 'success') {
-  const hero = document.querySelector<HTMLElement>('.hero');
+  const hero = document.querySelector<HTMLElement>('.checkout-hero');
   hero?.insertAdjacentHTML('afterbegin', '<div class="success-banner">Payment received. Your NoSub Pro access is being prepared.</div>');
 }
 
 async function start(): Promise<void> {
+  if (!hasPaddleConfig) {
+    for (const element of document.querySelectorAll<HTMLDivElement>('[data-price]')) {
+      element.classList.remove('loading');
+      element.innerHTML = '<strong>—</strong><span>Checkout configuration unavailable</span>';
+    }
+    return;
+  }
   paddle = await initializePaddle({
     environment: config.environment,
     token: config.token,
