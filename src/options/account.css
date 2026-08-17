@@ -31,10 +31,32 @@
 .avatar { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: #7b68e7; color: #fff; font-weight: 800; }
 .account-actions { display: flex; align-items: center; gap: 5px; }
 .hidden { display: none!important; }
+.plans-card { margin-bottom: 18px; }
+.plans-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+.plans-heading h2 { font-size: 21px; }
+.secure-label { color: #8fe8c1; background: #2bb7791f; border: 1px solid #45b98748; border-radius: 999px; padding: 7px 11px; font-size: 10px; white-space: nowrap; }
+.plan-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.plan-option { position: relative; min-height: 190px; display: flex; flex-direction: column; justify-content: space-between; gap: 22px; padding: 20px; border: 1px solid #383d4b; border-radius: 17px; background: #11131a; }
+.plan-option.featured { border-color: #8b76f582; background: linear-gradient(145deg,#211d38,#151620); }
+.plan-option.value { border-color: #45b9875e; }
+.plan-option small { color: #8e95a6; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .1em; }
+.plan-option h3 { margin: 9px 0 8px; font-size: 22px; }
+.plan-option p { font-size: 12px; }
+.popular { position: absolute; top: 12px; right: 12px; color: #d7cfff; font-size: 9px; font-weight: 800; }
+.value .popular { color: #8fe8c1; }
+.plan-button { width: 100%; display: flex; justify-content: space-between; border: 0; border-radius: 10px; padding: 12px 13px; color: #fff; background: #292d38; font: 750 11px Inter,system-ui,sans-serif; cursor: pointer; }
+.featured .plan-button { background: linear-gradient(135deg,#8b76f5,#6650d8); }
+.value .plan-button { color: #0d1b16; background: #8fe8c1; }
+.plan-button:hover { filter: brightness(1.1); }
+.plan-button:disabled { opacity: .38; cursor: not-allowed; filter: none; }
+.plans-note { margin-top: 15px!important; font-size: 11px!important; }
+.plans-card.is-active .plan-grid { opacity: .58; }
 @media (max-width: 700px) {
   .account-summary,.signed-in { align-items: stretch; flex-direction: column; }
   .google-button { width: 100%; }
   .account-actions { flex-wrap: wrap; }
   .account-heading { grid-template-columns: auto 1fr; }
   .plan-badge { grid-column: 2; justify-self: start; }
+  .plans-heading { flex-direction: column; }
+  .plan-grid { grid-template-columns: 1fr; }
 }

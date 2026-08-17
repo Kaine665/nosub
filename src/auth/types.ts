@@ -17,12 +17,14 @@ export interface AccountSnapshot {
   subscription: BillingSubscription | null;
 }
 
+export type BillingCycle = 'month' | 'quarter' | 'year';
+
 export type AccountRequest =
   | { type: 'account:sign-in-google' }
   | { type: 'account:get'; refresh?: boolean }
   | { type: 'account:sign-out' }
   | { type: 'account:create-portal' }
-  | { type: 'billing:open-upgrade' };
+  | { type: 'billing:open-upgrade'; cycle?: BillingCycle };
 
 export type AccountResponse =
   | { ok: true; account?: AccountSnapshot; url?: string }

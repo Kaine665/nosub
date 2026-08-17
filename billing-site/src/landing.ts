@@ -41,7 +41,7 @@ app.innerHTML = `
       </a>
       <div class="nav-actions">
         <a class="nav-link" href="#how-it-works">How it works</a>
-        <a class="nav-button" href="./pricing.html">View Pro plans</a>
+        <a class="nav-button" href="https://chromewebstore.google.com/detail/gjdbacmibabccgnjckmgflaomjboibji">Add to Chrome</a>
       </div>
     </nav>
 
@@ -51,7 +51,7 @@ app.innerHTML = `
       <p>Repeat the moment. Reveal the line. Understand every word.<br>NoSub turns videos you already love into deliberate practice.</p>
       <div class="hero-actions">
         <a class="hero-cta" href="https://chromewebstore.google.com/detail/gjdbacmibabccgnjckmgflaomjboibji">Add to Chrome <span aria-hidden="true">→</span></a>
-        <a class="text-cta" href="./pricing.html">Compare Pro plans</a>
+        <a class="text-cta" href="#how-it-works">See how it works</a>
       </div>
     </section>
 
@@ -68,8 +68,8 @@ app.innerHTML = `
     </section>
 
     <section class="pro-callout shell">
-      <div><p class="kicker">NoSub Pro</p><h2>Practice without limits.</h2><p>Unlimited translation, word explanations, saved learning history, and every future Pro listening feature.</p></div>
-      <a class="hero-cta" href="./pricing.html">See plans <span aria-hidden="true">→</span></a>
+      <div><p class="kicker">Ready when you are</p><h2>Start with a video you love.</h2><p>Install NoSub, open YouTube, and use the extension settings to shape your listening practice.</p></div>
+      <a class="hero-cta" href="https://chromewebstore.google.com/detail/gjdbacmibabccgnjckmgflaomjboibji">Add to Chrome <span aria-hidden="true">→</span></a>
     </section>
 
     <footer class="shell">

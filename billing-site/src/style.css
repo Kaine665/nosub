@@ -110,6 +110,13 @@ footer .brand { color: var(--ink); }
 footer a { text-decoration: none; }
 .footer-links { display: flex; gap: 20px; align-items: center; }
 .success-banner { margin: -50px auto 40px; padding: 14px 18px; border: 1px solid #a8b99d; border-radius: 10px; color: var(--green-deep); background: #e6f2da; font-weight: 700; }
+.checkout-bridge { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 18px; padding: 40px 20px; text-align: center; }
+.checkout-bridge .brand { margin-bottom: 26px; }
+.checkout-bridge h1 { margin: 0; font-size: clamp(30px,5vw,46px); letter-spacing: -.045em; }
+.checkout-bridge p { max-width: 520px; margin: 0; color: var(--muted); line-height: 1.6; }
+.checkout-loader { width: 34px; height: 34px; border: 3px solid #d6d8ce; border-top-color: var(--green); border-radius: 50%; animation: checkout-spin .8s linear infinite; }
+.checkout-loader.error { border-color: #b5554b; animation: none; }
+@keyframes checkout-spin { to { transform: rotate(360deg); } }
 
 .legal { max-width: 820px; padding: 74px 0 110px; }
 .legal h1 { font-size: clamp(42px, 7vw, 66px); letter-spacing: -.055em; }

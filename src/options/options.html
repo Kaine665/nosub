@@ -28,9 +28,33 @@
         </div>
         <div class="signed-in hidden" id="signed-in">
           <div class="identity"><span class="avatar" id="avatar">N</span><span><strong id="account-email-label"></strong><small id="plan-detail"></small></span></div>
-          <div class="account-actions"><button class="primary-button" id="upgrade" type="button" data-copy="upgrade">View Pro plans</button><button class="secondary-button hidden" id="manage" type="button" data-copy="manage">Manage subscription</button><button class="text-button" id="refresh-plan" type="button" data-copy="refresh">Refresh status</button><button class="text-button" id="sign-out" type="button" data-copy="signOut">Sign out</button></div>
+          <div class="account-actions"><button class="secondary-button hidden" id="manage" type="button" data-copy="manage">Manage subscription</button><button class="text-button" id="refresh-plan" type="button" data-copy="refresh">Refresh status</button><button class="text-button" id="sign-out" type="button" data-copy="signOut">Sign out</button></div>
         </div>
         <p class="account-message" id="account-message" role="status"></p>
+      </section>
+
+      <section class="card plans-card" id="plans-card">
+        <div class="plans-heading">
+          <div><div class="eyebrow">NOSUB PRO</div><h2 data-copy="plansTitle">Choose your plan</h2><p data-copy="plansHelp">Unlock unlimited translation, word explanations and every future Pro feature.</p></div>
+          <span class="secure-label" data-copy="secure">Secure checkout by Paddle</span>
+        </div>
+        <div class="plan-grid">
+          <article class="plan-option">
+            <div><small data-copy="flexible">Flexible</small><h3 data-copy="monthly">Monthly</h3><p data-copy="monthlyNote">Renews monthly. Cancel anytime.</p></div>
+            <button class="plan-button" type="button" data-cycle="month" disabled><span data-copy="chooseMonthly">Choose monthly</span><b>→</b></button>
+          </article>
+          <article class="plan-option featured">
+            <span class="popular" data-copy="popular">Most popular</span>
+            <div><small data-copy="momentum">Build momentum</small><h3 data-copy="quarterly">3 months</h3><p data-copy="quarterlyNote">Save 20% compared with monthly.</p></div>
+            <button class="plan-button" type="button" data-cycle="quarter" disabled><span data-copy="chooseQuarterly">Choose 3 months</span><b>→</b></button>
+          </article>
+          <article class="plan-option value">
+            <span class="popular" data-copy="bestValue">Best value · 35% off</span>
+            <div><small data-copy="commit">Make it count</small><h3 data-copy="yearly">Yearly</h3><p data-copy="yearlyNote">The lowest monthly price.</p></div>
+            <button class="plan-button" type="button" data-cycle="year" disabled><span data-copy="chooseYearly">Choose yearly</span><b>→</b></button>
+          </article>
+        </div>
+        <p class="plans-note" id="plans-note" data-copy="signInToBuy">Sign in with Google above before choosing a plan. Your Pro access will be linked to this account.</p>
       </section>
 
       <section class="card lead-card">

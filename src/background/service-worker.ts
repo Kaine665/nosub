@@ -54,8 +54,13 @@ chrome.runtime.onMessage.addListener(
     if (request.type === 'billing:open-upgrade') {
       void (async () => {
         try {
+          if (!request.cycle) {
+            await chrome.runtime.openOptionsPage();
+            sendResponse({ ok: true });
+            return;
+          }
           const context = await accountService.createCheckoutContext();
-          await chrome.tabs.create({ url: buildBillingUrl(context.email, context.checkoutToken) });
+          await chrome.tabs.create({ url: buildBillingUrl(request.cycle, context.email, context.checkoutToken) });
           sendResponse({ ok: true });
         } catch (error) {
           await chrome.runtime.openOptionsPage();
