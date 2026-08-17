@@ -35,4 +35,21 @@ describe('Google authentication', () => {
 
     await expect(verifyGoogleAccessToken('token', clientId)).rejects.toThrow('not issue this token');
   });
+
+  it('accepts a token issued for any configured NoSub extension client', async () => {
+    const localClientId = '654321.apps.googleusercontent.com';
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        aud: localClientId,
+        scope: 'openid https://www.googleapis.com/auth/userinfo.email',
+        expires_in: '3200',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        sub: 'google-user-123', email: 'learner@example.com', email_verified: true,
+      }), { status: 200 })));
+
+    await expect(verifyGoogleAccessToken('token', `${clientId}, ${localClientId}`)).resolves.toEqual({
+      subject: 'google-user-123', email: 'learner@example.com',
+    });
+  });
 });

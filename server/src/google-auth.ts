@@ -18,9 +18,12 @@ interface UserInfo {
 const EMAIL_SCOPE = 'https://www.googleapis.com/auth/userinfo.email';
 
 /** Validate a Chrome Identity access token before using its Google identity. */
-export async function verifyGoogleAccessToken(accessToken: string, clientId: string): Promise<GoogleIdentity> {
+export async function verifyGoogleAccessToken(accessToken: string, clientIds: string): Promise<GoogleIdentity> {
   if (!accessToken || accessToken.length > 4096) throw new Error('Invalid Google access token.');
-  if (!clientId.endsWith('.apps.googleusercontent.com')) throw new Error('Google sign-in is not configured yet.');
+  const allowedClientIds = new Set(clientIds.split(',').map((value) => value.trim()).filter(
+    (value) => value.endsWith('.apps.googleusercontent.com'),
+  ));
+  if (allowedClientIds.size === 0) throw new Error('Google sign-in is not configured yet.');
 
   const headers = { authorization: `Bearer ${accessToken}` };
   const [tokenResponse, userResponse] = await Promise.all([
@@ -36,7 +39,7 @@ export async function verifyGoogleAccessToken(accessToken: string, clientId: str
   const token = await tokenResponse.json() as TokenInfo;
   const user = await userResponse.json() as UserInfo;
   const scopes = new Set((token.scope ?? '').split(/\s+/).filter(Boolean));
-  if (token.aud !== clientId || !scopes.has(EMAIL_SCOPE) || Number(token.expires_in ?? 0) <= 0) {
+  if (!token.aud || !allowedClientIds.has(token.aud) || !scopes.has(EMAIL_SCOPE) || Number(token.expires_in ?? 0) <= 0) {
     throw new Error('Google did not issue this token for NoSub.');
   }
   const email = user.email?.trim().toLowerCase() ?? '';
