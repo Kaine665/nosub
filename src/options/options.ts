@@ -2,7 +2,6 @@ import { SettingsRepository } from '../storage/settings-repository.js';
 import type { UserSettings } from '../shared/types.js';
 import { resolveLocale, t, type AppLocale } from '../shared/i18n.js';
 import type { AccountRequest, AccountResponse, AccountSnapshot } from '../auth/types.js';
-import { buildBillingUrl } from '../shared/billing.js';
 
 const copy = {
   en: {title:'Make every sentence count.',subtitle:'Shape your focused-listening experience for YouTube.',saved:'Saved',saving:'Saving…',account:'Account & plan',accountHelp:'Sign in to activate Pro on this browser and manage your subscription.',signIn:'Sign in',signUp:'Create account',authNote:'New here? Create an account, then confirm your email once.',upgrade:'View Pro plans',manage:'Manage subscription',refresh:'Refresh status',signOut:'Sign out',freePlan:'Free plan · Core listening tools included',proPlan:'Pro active',signedIn:'Signed in successfully.',confirmEmail:'Account created. Open the confirmation email, then sign in here.',refreshed:'Plan status refreshed.',extension:'NoSub on YouTube',extensionHelp:'Show the focused-listening controls on supported YouTube videos.',language:'Language',interfaceLanguage:'Interface language',auto:'Auto (browser)',captionLanguage:'Preferred caption language',englishAny:'English (any)',translationLanguage:'Translate captions to',off:'Off',session:'Listening session',startingView:'Starting subtitle view',hidden:'Hidden — listen first',original:'Original captions',translated:'Original + translation',shortcuts:'Keyboard flow',shortcutHelp:'A repeat · S captions · D next · E speed',privacy:'Privacy & online services',privacyText:'Settings and learning state stay in Chrome local storage. Definitions, translations, pronunciation audio, and example sentences are requested only when you use those features. No browsing history is sold or used for advertising.',dictionarySource:'Dictionary source',publicDictionary:'Public APIs · NoSub server fallback',serverDictionary:'NoSub server only',services:'Connected services',serviceList:'Dictionary service · Google Translate · Tatoeba',onDemand:'On demand',reloadHint:'Changes apply to newly opened or reloaded YouTube pages.'},
@@ -111,7 +110,11 @@ function bindAccount(): void {
     if (response.account) paintAccount(response.account);
     showMessage(response.needsConfirmation ? copy[locale()].confirmEmail : copy[locale()].signedIn, 'success');
   }));
-  byId<HTMLButtonElement>('upgrade').addEventListener('click', () => void chrome.tabs.create({ url: buildBillingUrl(account.user?.email) }));
+  const upgrade = byId<HTMLButtonElement>('upgrade');
+  upgrade.addEventListener('click', () => void withBusy(upgrade, async () => {
+    const response = await request({ type: 'billing:open-upgrade' });
+    if (!response.ok) throw new Error(response.error);
+  }));
   const manage = byId<HTMLButtonElement>('manage');
   manage.addEventListener('click', () => void withBusy(manage, async () => {
     const response = await request({ type: 'account:create-portal' });
