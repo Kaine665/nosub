@@ -4,7 +4,8 @@ import type pg from 'pg';
 import { createSession, pool, userForAccessToken, type UserRecord } from './database.js';
 import { paddleApiBase, processPaddleEvent, type PaddleEvent } from './paddle.js';
 import { parseAnalyticsEvent } from './analytics.js';
-import { hashPassword, hashToken, newToken, signCheckoutToken, verifyPaddleSignature, verifyPassword } from './security.js';
+import { verifyGoogleAccessToken } from './google-auth.js';
+import { hashToken, newToken, signCheckoutToken, verifyPaddleSignature } from './security.js';
 
 interface JsonEnvelope {
   raw: string;
@@ -20,19 +21,6 @@ function jsonBody(request: FastifyRequest): Record<string, unknown> {
 function bearer(request: FastifyRequest): string | null {
   const value = request.headers.authorization;
   return value?.replace(/^Bearer\s+/i, '') || null;
-}
-
-function normalizeEmail(value: unknown): string {
-  const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.');
-  return email;
-}
-
-function validPassword(value: unknown): string {
-  const password = typeof value === 'string' ? value : '';
-  if (password.length < 8) throw new Error('Password must be at least 8 characters.');
-  if (password.length > 200) throw new Error('Password is too long.');
-  return password;
 }
 
 function checkoutSecret(): string {
@@ -98,39 +86,41 @@ app.post('/v1/analytics/events', { config: { rateLimit: { max: 60, timeWindow: '
   }
 });
 
-app.post('/v1/auth/signup', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
+app.post('/v1/auth/google', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
   try {
     const body = jsonBody(request);
-    const email = normalizeEmail(body.email);
-    const passwordHash = await hashPassword(validPassword(body.password));
+    const googleAccessToken = typeof body.google_access_token === 'string' ? body.google_access_token : '';
+    const identity = await verifyGoogleAccessToken(googleAccessToken, process.env.GOOGLE_OAUTH_CLIENT_ID ?? '');
     const session = await withTransaction(async (client) => {
-      const result = await client.query<UserRecord>(
-        'insert into users (email, password_hash) values ($1, $2) returning id, email::text',
-        [email, passwordHash],
+      const existing = await client.query<UserRecord>(
+        `select id, email::text from users where google_subject = $1 for update`, [identity.subject],
       );
-      return createSession(client, result.rows[0]!);
+      let user = existing.rows[0];
+      if (user) {
+        const updated = await client.query<UserRecord>(
+          'update users set email = $1, updated_at = now() where id = $2 returning id, email::text',
+          [identity.email, user.id],
+        );
+        user = updated.rows[0]!;
+      } else {
+        const linked = await client.query<UserRecord>(
+          `insert into users (email, google_subject) values ($1, $2)
+           on conflict (email) do update set google_subject = excluded.google_subject, updated_at = now()
+             where users.google_subject is null or users.google_subject = excluded.google_subject
+           returning id, email::text`,
+          [identity.email, identity.subject],
+        );
+        user = linked.rows[0];
+        if (!user) throw new Error('This email is already linked to another Google account.');
+      }
+      return createSession(client, user);
     });
-    return reply.code(201).send(session);
+    return reply.send(session);
   } catch (error) {
-    const pgError = error as { code?: string };
-    if (pgError.code === '23505') return reply.code(409).send({ error: 'An account with this email already exists.' });
-    return reply.code(400).send({ error: error instanceof Error ? error.message : 'Unable to create account.' });
+    const message = error instanceof Error ? error.message : 'Unable to sign in with Google.';
+    const status = message.includes('not configured') ? 503 : 401;
+    return reply.code(status).send({ error: message });
   }
-});
-
-app.post('/v1/auth/login', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
-  const body = jsonBody(request);
-  const email = normalizeEmail(body.email);
-  const password = validPassword(body.password);
-  const result = await pool.query<UserRecord & { password_hash: string }>(
-    'select id, email::text, password_hash from users where email = $1', [email],
-  );
-  const record = result.rows[0];
-  if (!record || !await verifyPassword(password, record.password_hash)) {
-    return reply.code(401).send({ error: 'Invalid email or password.' });
-  }
-  const session = await withTransaction((client) => createSession(client, { id: record.id, email: record.email }));
-  return session;
 });
 
 app.post('/v1/auth/refresh', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request, reply) => {

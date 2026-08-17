@@ -70,11 +70,8 @@ chrome.runtime.onMessage.addListener(
     if (request.type.startsWith('account:')) {
       void (async () => {
         try {
-          if (request.type === 'account:sign-in') {
-            sendResponse({ ok: true, account: await accountService.signIn(request.email, request.password) });
-          } else if (request.type === 'account:sign-up') {
-            const result = await accountService.signUp(request.email, request.password);
-            sendResponse({ ok: true, ...result });
+          if (request.type === 'account:sign-in-google') {
+            sendResponse({ ok: true, account: await accountService.signInWithGoogle() });
           } else if (request.type === 'account:get') {
             sendResponse({ ok: true, account: await accountService.getAccount(request.refresh) });
           } else if (request.type === 'account:sign-out') {

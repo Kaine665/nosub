@@ -24,7 +24,7 @@
         </div>
         <div class="account-summary" id="signed-out">
           <div><strong data-copy="signedOutTitle">Not signed in</strong><small data-copy="freeNoLogin">Free features work without an account.</small></div>
-          <button class="primary-button" id="open-auth" type="button" data-copy="accountAction">Sign in / create account</button>
+          <button class="google-button" id="google-sign-in" type="button"><svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285f4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.61Z"/><path fill="#34a853" d="M9 18c2.43 0 4.47-.8 5.95-2.19l-2.91-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.33-1.59-5.04-3.72H.96v2.33A9 9 0 0 0 9 18Z"/><path fill="#fbbc05" d="M3.96 10.69A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.16.28-1.69V4.98H.96A9 9 0 0 0 0 9c0 1.45.35 2.82.96 4.02l3-2.33Z"/><path fill="#ea4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58A8.64 8.64 0 0 0 9 0 9 9 0 0 0 .96 4.98l3 2.33C4.67 5.17 6.66 3.58 9 3.58Z"/></svg><span data-copy="googleSignIn">Continue with Google</span></button>
         </div>
         <div class="signed-in hidden" id="signed-in">
           <div class="identity"><span class="avatar" id="avatar">N</span><span><strong id="account-email-label"></strong><small id="plan-detail"></small></span></div>
@@ -32,24 +32,6 @@
         </div>
         <p class="account-message" id="account-message" role="status"></p>
       </section>
-
-      <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-title">
-        <form class="auth-panel" id="auth-form" method="dialog">
-          <button class="dialog-close" id="auth-close" type="button" aria-label="Close">×</button>
-          <div class="auth-brand"><span>N</span><div><strong>NoSub</strong><small data-copy="authEyebrow">Account</small></div></div>
-          <h2 id="auth-title">Sign in to NoSub</h2>
-          <p id="auth-subtitle">Continue to sync your Pro access on this browser.</p>
-          <div class="auth-tabs" role="tablist">
-            <button class="auth-tab active" id="sign-in-mode" type="button" role="tab" aria-selected="true" data-copy="signIn">Sign in</button>
-            <button class="auth-tab" id="sign-up-mode" type="button" role="tab" aria-selected="false" data-copy="signUp">Create account</button>
-          </div>
-          <label class="auth-field"><span data-copy="emailLabel">Email</span><input id="account-email" type="email" autocomplete="email" placeholder="you@example.com" required /></label>
-          <label class="auth-field"><span data-copy="passwordLabel">Password</span><input id="account-password" type="password" autocomplete="current-password" minlength="6" required /></label>
-          <p class="auth-message" id="auth-message" role="status"></p>
-          <button class="primary-button auth-submit" id="auth-submit" type="submit">Sign in</button>
-          <p class="auth-footnote" data-copy="authFootnote">Your free listening tools remain available without signing in.</p>
-        </form>
-      </dialog>
 
       <section class="card lead-card">
         <div><h2 data-copy="extension">NoSub on YouTube</h2><p data-copy="extensionHelp">Show the focused-listening controls on supported YouTube videos.</p></div>

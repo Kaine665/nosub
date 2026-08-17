@@ -1,35 +1,4 @@
-import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-
-const SCRYPT_N = 16_384;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const KEY_LENGTH = 64;
-
-function derive(password: string, salt: Buffer): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    scrypt(password, salt, KEY_LENGTH, {
-      N: SCRYPT_N,
-      r: SCRYPT_R,
-      p: SCRYPT_P,
-      maxmem: 64 * 1024 * 1024,
-    }, (error, key) => error ? reject(error) : resolve(key));
-  });
-}
-
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const key = await derive(password, salt);
-  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString('base64url')}$${key.toString('base64url')}`;
-}
-
-export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
-  const [algorithm, rawN, rawR, rawP, rawSalt, rawKey] = encoded.split('$');
-  if (algorithm !== 'scrypt' || !rawN || !rawR || !rawP || !rawSalt || !rawKey) return false;
-  if (Number(rawN) !== SCRYPT_N || Number(rawR) !== SCRYPT_R || Number(rawP) !== SCRYPT_P) return false;
-  const expected = Buffer.from(rawKey, 'base64url');
-  const actual = await derive(password, Buffer.from(rawSalt, 'base64url'));
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
-}
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export function newToken(): string {
   return randomBytes(32).toString('base64url');

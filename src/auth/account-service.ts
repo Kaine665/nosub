@@ -27,24 +27,25 @@ async function errorMessage(response: Response): Promise<string> {
 }
 
 export class AccountService {
-  async signIn(email: string, password: string): Promise<AccountSnapshot> {
-    const response = await fetch(`${API_URL}/v1/auth/login`, {
-      method: 'POST', headers: this.headers(),
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+  async signInWithGoogle(): Promise<AccountSnapshot> {
+    const tokenResult = await chrome.identity.getAuthToken({
+      interactive: true,
+      scopes: [
+        'openid',
+        'https://www.googleapis.com/auth/userinfo.email',
+      ],
     });
-    if (!response.ok) throw new Error(await errorMessage(response));
+    if (!tokenResult.token) throw new Error('Google did not return a sign-in token.');
+    const response = await fetch(`${API_URL}/v1/auth/google`, {
+      method: 'POST', headers: this.headers(),
+      body: JSON.stringify({ google_access_token: tokenResult.token }),
+    });
+    if (!response.ok) {
+      if (response.status === 401) await chrome.identity.removeCachedAuthToken({ token: tokenResult.token });
+      throw new Error(await errorMessage(response));
+    }
     await this.saveSession(await response.json() as AuthSession);
     return this.getAccount(true);
-  }
-
-  async signUp(email: string, password: string): Promise<{ account?: AccountSnapshot; needsConfirmation: boolean }> {
-    const response = await fetch(`${API_URL}/v1/auth/signup`, {
-      method: 'POST', headers: this.headers(),
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-    });
-    if (!response.ok) throw new Error(await errorMessage(response));
-    await this.saveSession(await response.json() as AuthSession);
-    return { account: await this.getAccount(true), needsConfirmation: false };
   }
 
   async signOut(): Promise<void> {

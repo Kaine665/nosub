@@ -1,17 +1,10 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
-  hashPassword, signCheckoutToken, verifyCheckoutToken, verifyPaddleSignature, verifyPassword,
+  signCheckoutToken, verifyCheckoutToken, verifyPaddleSignature,
 } from '../../server/src/security.js';
 
 describe('server security', () => {
-  it('hashes and verifies passwords without storing the plaintext', async () => {
-    const encoded = await hashPassword('correct horse battery staple');
-    expect(encoded).not.toContain('correct horse');
-    await expect(verifyPassword('correct horse battery staple', encoded)).resolves.toBe(true);
-    await expect(verifyPassword('wrong password', encoded)).resolves.toBe(false);
-  });
-
   it('verifies a current Paddle signature and rejects a modified payload', () => {
     const now = 1_700_000_000;
     const body = '{"event_id":"evt_1"}';

@@ -1,6 +1,9 @@
 import { defineManifest } from '@crxjs/vite-plugin';
 import pkg from './package.json' with { type: 'json' };
 
+const googleOAuthClientId = process.env.GOOGLE_OAUTH_CLIENT_ID
+  ?? 'replace-with-google-client-id.apps.googleusercontent.com';
+
 /**
  * MV3 manifest — 动态定义。
  * 权限严格按 design §11:storage + YouTube host permission,不多不少。
@@ -31,7 +34,14 @@ export default defineManifest({
     page: 'src/options/options.html',
     open_in_tab: true,
   },
-  permissions: ['storage', 'activeTab'],
+  permissions: ['storage', 'activeTab', 'identity'],
+  oauth2: {
+    client_id: googleOAuthClientId,
+    scopes: [
+      'openid',
+      'https://www.googleapis.com/auth/userinfo.email',
+    ],
+  },
   host_permissions: [
     'https://www.youtube.com/*',
     'https://api.dictionaryapi.dev/*',

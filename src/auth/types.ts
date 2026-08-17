@@ -18,13 +18,12 @@ export interface AccountSnapshot {
 }
 
 export type AccountRequest =
-  | { type: 'account:sign-in'; email: string; password: string }
-  | { type: 'account:sign-up'; email: string; password: string }
+  | { type: 'account:sign-in-google' }
   | { type: 'account:get'; refresh?: boolean }
   | { type: 'account:sign-out' }
   | { type: 'account:create-portal' }
   | { type: 'billing:open-upgrade' };
 
 export type AccountResponse =
-  | { ok: true; account?: AccountSnapshot; url?: string; needsConfirmation?: boolean }
+  | { ok: true; account?: AccountSnapshot; url?: string }
   | { ok: false; error: string };
