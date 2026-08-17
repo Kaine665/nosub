@@ -2,7 +2,7 @@ import { defineManifest } from '@crxjs/vite-plugin';
 import pkg from './package.json' with { type: 'json' };
 
 const googleOAuthClientId = process.env.GOOGLE_OAUTH_CLIENT_ID
-  ?? 'replace-with-google-client-id.apps.googleusercontent.com';
+  ?? '1052189288353-kng9ngnci8s629mo0ub8q50iamhienrb.apps.googleusercontent.com';
 
 /**
  * MV3 manifest — 动态定义。
