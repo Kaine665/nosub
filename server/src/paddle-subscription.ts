@@ -21,6 +21,7 @@ export interface SubscriptionCacheValues {
   customerId: string;
   status: string;
   priceId: string;
+  priceIds: string[];
   productId: string;
   trialStartedAt: string | null;
   trialEndsAt: string | null;
@@ -50,11 +51,15 @@ export function subscriptionCacheValues(data: PaddleSubscriptionData): Subscript
   }
   const trialStartedAt = firstDate(data.items ?? [], 'starts_at');
   const itemTrialEndsAt = firstDate(data.items ?? [], 'ends_at');
+  const priceIds = [...new Set((data.items ?? [])
+    .map((subscriptionItem) => subscriptionItem.price?.id)
+    .filter((value): value is string => Boolean(value)))];
   return {
     subscriptionId: data.id,
     customerId: data.customer_id,
     status: data.status,
     priceId,
+    priceIds,
     productId,
     trialStartedAt,
     trialEndsAt: itemTrialEndsAt ?? (data.status === 'trialing' ? data.next_billed_at ?? null : null),
@@ -73,7 +78,8 @@ export function cacheDiffers(
   incoming: SubscriptionCacheValues,
 ): boolean {
   const pairs: Array<[string, unknown]> = [
-    ['status', incoming.status], ['price_id', incoming.priceId], ['product_id', incoming.productId],
+    ['status', incoming.status], ['price_id', incoming.priceId], ['price_ids', incoming.priceIds],
+    ['product_id', incoming.productId],
     ['trial_started_at', incoming.trialStartedAt], ['trial_ends_at', incoming.trialEndsAt],
     ['current_period_starts_at', incoming.currentPeriodStartsAt],
     ['current_period_ends_at', incoming.currentPeriodEndsAt], ['next_billed_at', incoming.nextBilledAt],
@@ -82,6 +88,10 @@ export function cacheDiffers(
   ];
   return pairs.some(([key, value]) => {
     const existing = current[key];
+    if (Array.isArray(existing) || Array.isArray(value)) {
+      if (!Array.isArray(existing) || !Array.isArray(value)) return true;
+      return existing.length !== value.length || existing.some((item, index) => item !== value[index]);
+    }
     if (existing == null || value == null) return existing != value;
     const existingText = existing instanceof Date ? existing.toISOString() : String(existing);
     const existingDate = Date.parse(existingText);

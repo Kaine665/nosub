@@ -6,7 +6,7 @@ import { paddleApiBase, processPaddleEvent, type PaddleEvent } from './paddle.js
 import { parseAnalyticsEvent } from './analytics.js';
 import { verifyGoogleAccessToken } from './google-auth.js';
 import { hashToken, newToken, signCheckoutToken, verifyPaddleSignature } from './security.js';
-import { hasProAccess } from './subscription-access.js';
+import { allowedNoSubPriceIds, hasProAccess } from './subscription-access.js';
 
 interface JsonEnvelope {
   raw: string;
@@ -173,16 +173,18 @@ app.get('/v1/account', async (request, reply) => {
   const user = token ? await userForAccessToken(token) : null;
   if (!user) return reply.code(401).send({ error: 'Your session has expired. Sign in again.' });
   const result = await pool.query<{
-    paddle_subscription_id: string; status: string; price_id: string;
+    paddle_subscription_id: string; status: string; price_id: string; price_ids: string[];
     trial_ends_at: string | null; current_period_ends_at: string | null;
     scheduled_change_action: string | null; paddle_last_synced_at: string | null;
   }>(
-    `select paddle_subscription_id, status, price_id, trial_ends_at, current_period_ends_at,
+    `select paddle_subscription_id, status, price_id, price_ids, trial_ends_at, current_period_ends_at,
             scheduled_change_action, paddle_last_synced_at
-       from subscriptions where user_id = $1 order by updated_at desc`, [user.id],
+       from subscriptions
+      where user_id = $1 and price_ids && $2::text[]
+      order by updated_at desc`, [user.id, [...allowedNoSubPriceIds()]],
   );
   const eligible = result.rows.find((item) => hasProAccess({
-    status: item.status, trialEndsAt: item.trial_ends_at,
+    status: item.status, priceIds: item.price_ids, trialEndsAt: item.trial_ends_at,
     currentPeriodEndsAt: item.current_period_ends_at,
   }));
   const row = eligible ?? result.rows[0];
@@ -203,22 +205,29 @@ app.post('/v1/billing/portal', async (request, reply) => {
   const token = bearer(request);
   const user = token ? await userForAccessToken(token) : null;
   if (!user) return reply.code(401).send({ error: 'Sign in before managing your subscription.' });
-  const customerResult = await pool.query<{ paddle_customer_id: string }>(
-    'select paddle_customer_id from paddle_customers where user_id = $1 limit 1', [user.id],
+  const allowedPriceIds = [...allowedNoSubPriceIds()];
+  if (!allowedPriceIds.length) return reply.code(503).send({ error: 'NoSub Pro plans are not configured yet.' });
+  const subscriptions = await pool.query<{ paddle_customer_id: string; paddle_subscription_id: string }>(
+    `select paddle_customer_id, paddle_subscription_id
+       from subscriptions
+      where user_id = $1 and price_ids && $2::text[]
+      order by updated_at desc limit 25`,
+    [user.id, allowedPriceIds],
   );
-  const customer = customerResult.rows[0];
-  if (!customer) return reply.code(404).send({ error: 'No Paddle subscription is linked to this account yet.' });
+  const customer = subscriptions.rows[0];
+  if (!customer) return reply.code(404).send({ error: 'No NoSub subscription is linked to this account yet.' });
   const apiKey = process.env.PADDLE_API_KEY;
   if (!apiKey) return reply.code(503).send({ error: 'Billing portal is not configured yet.' });
-  const subscriptions = await pool.query<{ paddle_subscription_id: string }>(
-    'select paddle_subscription_id from subscriptions where user_id = $1 limit 25', [user.id],
-  );
   const paddleResponse = await fetch(
     `${paddleApiBase(process.env.PADDLE_ENVIRONMENT, apiKey)}/customers/${customer.paddle_customer_id}/portal-sessions`,
     {
       method: 'POST',
       headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json', 'paddle-version': '1' },
-      body: JSON.stringify({ subscription_ids: subscriptions.rows.map((item) => item.paddle_subscription_id) }),
+      body: JSON.stringify({
+        subscription_ids: subscriptions.rows
+          .filter((item) => item.paddle_customer_id === customer.paddle_customer_id)
+          .map((item) => item.paddle_subscription_id),
+      }),
     },
   );
   const paddleBody = await paddleResponse.json() as {

@@ -31,7 +31,7 @@ export async function upsertPaddleSubscription(
     [values.customerId, options.claims?.userId ?? null, options.claims?.email ?? null],
   );
   const parameters = [
-    values.subscriptionId, values.customerId, values.status, values.priceId, values.productId,
+    values.subscriptionId, values.customerId, values.status, values.priceId, values.priceIds, values.productId,
     values.currentPeriodStartsAt, values.currentPeriodEndsAt, values.scheduledChangeAction,
     values.scheduledChangeAt, values.canceledAt, values.trialStartedAt, values.trialEndsAt,
     values.nextBilledAt, values.paddleUpdatedAt, options.eventOccurredAt ?? null,
@@ -43,16 +43,18 @@ export async function upsertPaddleSubscription(
   await client.query(
     `insert into subscriptions (
       paddle_subscription_id, paddle_customer_id, user_id, status, price_id, product_id,
+      price_ids,
       current_period_starts_at, current_period_ends_at, scheduled_change_action,
       scheduled_change_at, canceled_at, trial_started_at, trial_ends_at, next_billed_at,
       paddle_updated_at, paddle_last_synced_at, last_event_occurred_at
     ) values (
-      $1, $2, (select user_id from paddle_customers where paddle_customer_id = $2), $3, $4, $5,
-      $6, $7, $8, $9, $10, $11, $12, $13, $14, now(), $15
+      $1, $2, (select user_id from paddle_customers where paddle_customer_id = $2), $3, $4, $6,
+      $5, $7, $8, $9, $10, $11, $12, $13, $14, $15, now(), $16
     ) on conflict (paddle_subscription_id) do update set
       paddle_customer_id = excluded.paddle_customer_id,
       user_id = coalesce(excluded.user_id, subscriptions.user_id), status = excluded.status,
       price_id = excluded.price_id, product_id = excluded.product_id,
+      price_ids = excluded.price_ids,
       current_period_starts_at = excluded.current_period_starts_at,
       current_period_ends_at = excluded.current_period_ends_at,
       scheduled_change_action = excluded.scheduled_change_action,
@@ -76,19 +78,10 @@ export async function processPaddleEvent(client: pg.PoolClient, event: PaddleEve
     const email = (data.email as string | null) ?? null;
     await client.query(
       `insert into paddle_customers (paddle_customer_id, user_id, email)
-       values ($1, (select id from users where email = $2::citext order by created_at limit 1), $2)
+       values ($1, null, $2)
        on conflict (paddle_customer_id) do update set
-         user_id = coalesce(excluded.user_id, paddle_customers.user_id),
          email = coalesce(excluded.email, paddle_customers.email), updated_at = now()`,
       [data.id, email],
-    );
-    await client.query(
-      `update subscriptions set user_id = paddle_customers.user_id, updated_at = now()
-         from paddle_customers
-        where subscriptions.paddle_customer_id = paddle_customers.paddle_customer_id
-          and paddle_customers.paddle_customer_id = $1
-          and paddle_customers.user_id is not null`,
-      [data.id],
     );
     return;
   }

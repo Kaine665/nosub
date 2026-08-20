@@ -5,6 +5,9 @@ checks do not depend on a live Paddle request.
 
 ## Access rules
 
+- the subscription must contain at least one Price ID listed in
+  `NOSUB_PRO_PRICE_IDS`; an empty whitelist or an unrelated Paddle product
+  always fails closed;
 - `trialing`: Pro only while `trial_ends_at > now()`; missing or expired trial
   end dates fail closed.
 - `active`: Pro through `current_period_ends_at` plus the configured paid grace
@@ -14,7 +17,12 @@ checks do not depend on a live Paddle request.
 - `paused` and `canceled`: no Pro access.
 
 `PAID_ACCESS_GRACE_HOURS` defaults to 72. Trial access never receives a grace
-period.
+period. Keep `NOSUB_PRO_PRICE_IDS` limited to the three official NoSub plans;
+do not add temporary test prices.
+
+Paddle customers are linked to NoSub users only through the signed
+`nosub_checkout_token` returned in Paddle custom data. Matching email addresses
+are stored as billing metadata but never establish account ownership.
 
 ## Synchronization
 
@@ -26,6 +34,7 @@ event cannot overwrite a newer cached state.
 
 - every `trialing` subscription is checked;
 - `active` and `past_due` subscriptions are checked at least daily;
+- unrelated Paddle products are excluded from NoSub reconciliation;
 - the current Paddle entity repairs any local drift;
 - every run is saved in `billing_reconciliation_runs` and failures produce a
   non-zero service result in the system journal.

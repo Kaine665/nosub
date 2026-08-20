@@ -2,8 +2,16 @@ export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'paused' |
 
 export interface SubscriptionAccessRecord {
   status: SubscriptionStatus;
+  priceIds: readonly string[];
   trialEndsAt: string | Date | null;
   currentPeriodEndsAt: string | Date | null;
+}
+
+export function allowedNoSubPriceIds(value = process.env.NOSUB_PRO_PRICE_IDS): ReadonlySet<string> {
+  return new Set((value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => /^pri_[A-Za-z0-9]+$/.test(item)));
 }
 
 function time(value: string | Date | null): number | null {
@@ -21,7 +29,9 @@ export function hasProAccess(
   subscription: SubscriptionAccessRecord,
   now = new Date(),
   graceMs = paidAccessGraceMs(),
+  allowedPriceIds = allowedNoSubPriceIds(),
 ): boolean {
+  if (!subscription.priceIds.some((priceId) => allowedPriceIds.has(priceId))) return false;
   const nowMs = now.getTime();
   if (subscription.status === 'trialing') {
     const trialEndsAt = time(subscription.trialEndsAt);

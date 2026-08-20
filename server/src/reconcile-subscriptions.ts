@@ -3,6 +3,7 @@ import { paddleApiBase, upsertPaddleSubscription } from './paddle.js';
 import {
   cacheDiffers, subscriptionCacheValues, type PaddleSubscriptionData,
 } from './paddle-subscription.js';
+import { allowedNoSubPriceIds } from './subscription-access.js';
 
 interface Candidate extends Record<string, unknown> {
   paddle_subscription_id: string;
@@ -17,6 +18,8 @@ const apiKey = process.env.PADDLE_API_KEY;
 if (!apiKey) throw new Error('PADDLE_API_KEY is required for billing reconciliation.');
 const apiBase = paddleApiBase(process.env.PADDLE_ENVIRONMENT, apiKey);
 const reconcileAll = process.argv.includes('--all');
+const allowedPriceIds = [...allowedNoSubPriceIds()];
+if (!allowedPriceIds.length) throw new Error('NOSUB_PRO_PRICE_IDS must contain at least one Paddle price ID.');
 const runResult = await pool.query<{ id: string }>(
   `insert into billing_reconciliation_runs default values returning id::text`,
 );
@@ -41,12 +44,14 @@ try {
   await paddleRequest('/subscriptions?per_page=1');
   const candidates = await pool.query<Candidate>(
     `select * from subscriptions
-      where $1::boolean
+      where price_ids && $2::text[]
+        and ($1::boolean
          or status = 'trialing'
          or (status in ('active', 'past_due')
              and coalesce(paddle_last_synced_at, to_timestamp(0)) < now() - interval '24 hours')
+        )
       order by case when status = 'trialing' then 0 else 1 end, paddle_last_synced_at nulls first`,
-    [reconcileAll],
+    [reconcileAll, allowedPriceIds],
   );
 
   for (const current of candidates.rows) {
