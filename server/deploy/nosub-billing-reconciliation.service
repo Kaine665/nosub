@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile NoSub subscription access with Paddle
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/nosub
+ExecStart=/usr/bin/docker compose exec -T api node dist/reconcile-subscriptions.js
+TimeoutStartSec=20m

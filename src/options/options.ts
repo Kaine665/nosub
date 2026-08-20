@@ -59,7 +59,9 @@ function showMessage(text: string, kind: 'success' | 'error' | '' = ''): void {
 
 function planDetail(value: AccountSnapshot): string {
   if (!value.isPro) return copy[locale()].freePlan;
-  const end = value.subscription?.currentPeriodEndsAt;
+  const end = value.subscription?.status === 'trialing'
+    ? value.subscription.trialEndsAt
+    : value.subscription?.currentPeriodEndsAt;
   if (!end) return copy[locale()].proPlan;
   const date = new Intl.DateTimeFormat(locale() === 'zh_CN' ? 'zh-CN' : 'en', { dateStyle: 'medium' }).format(new Date(end));
   return `${copy[locale()].proPlan} · ${date}`;

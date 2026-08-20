@@ -7,8 +7,10 @@ export interface BillingSubscription {
   id: string;
   status: string;
   priceId: string;
+  trialEndsAt: string | null;
   currentPeriodEndsAt: string | null;
   scheduledChangeAction: string | null;
+  paddleLastSyncedAt: string | null;
 }
 
 export interface AccountSnapshot {

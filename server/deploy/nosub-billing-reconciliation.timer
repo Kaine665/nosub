@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile NoSub trial and paid subscriptions every hour
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target

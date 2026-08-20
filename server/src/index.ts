@@ -6,6 +6,7 @@ import { paddleApiBase, processPaddleEvent, type PaddleEvent } from './paddle.js
 import { parseAnalyticsEvent } from './analytics.js';
 import { verifyGoogleAccessToken } from './google-auth.js';
 import { hashToken, newToken, signCheckoutToken, verifyPaddleSignature } from './security.js';
+import { hasProAccess } from './subscription-access.js';
 
 interface JsonEnvelope {
   raw: string;
@@ -67,7 +68,15 @@ app.options('/*', async (_request, reply) => reply.code(204).send());
 
 app.get('/health', async () => {
   await pool.query('select 1');
-  return { ok: true };
+  const reconciliation = await pool.query<{
+    status: string; started_at: string; finished_at: string | null; failed_count: number;
+  }>(
+    `select status, started_at, finished_at, failed_count
+       from billing_reconciliation_runs order by started_at desc limit 1`,
+  ).catch(() => ({ rows: [] as Array<{
+    status: string; started_at: string; finished_at: string | null; failed_count: number;
+  }> }));
+  return { ok: true, billingReconciliation: reconciliation.rows[0] ?? null };
 });
 
 app.post('/v1/analytics/events', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request, reply) => {
@@ -165,19 +174,27 @@ app.get('/v1/account', async (request, reply) => {
   if (!user) return reply.code(401).send({ error: 'Your session has expired. Sign in again.' });
   const result = await pool.query<{
     paddle_subscription_id: string; status: string; price_id: string;
-    current_period_ends_at: string | null; scheduled_change_action: string | null;
+    trial_ends_at: string | null; current_period_ends_at: string | null;
+    scheduled_change_action: string | null; paddle_last_synced_at: string | null;
   }>(
-    `select paddle_subscription_id, status, price_id, current_period_ends_at, scheduled_change_action
-       from subscriptions where user_id = $1 order by updated_at desc limit 1`, [user.id],
+    `select paddle_subscription_id, status, price_id, trial_ends_at, current_period_ends_at,
+            scheduled_change_action, paddle_last_synced_at
+       from subscriptions where user_id = $1 order by updated_at desc`, [user.id],
   );
-  const row = result.rows[0];
+  const eligible = result.rows.find((item) => hasProAccess({
+    status: item.status, trialEndsAt: item.trial_ends_at,
+    currentPeriodEndsAt: item.current_period_ends_at,
+  }));
+  const row = eligible ?? result.rows[0];
   return {
     user,
-    isPro: row?.status === 'active' || row?.status === 'trialing',
+    isPro: Boolean(eligible),
     subscription: row ? {
       id: row.paddle_subscription_id, status: row.status, priceId: row.price_id,
+      trialEndsAt: row.trial_ends_at,
       currentPeriodEndsAt: row.current_period_ends_at,
       scheduledChangeAction: row.scheduled_change_action,
+      paddleLastSyncedAt: row.paddle_last_synced_at,
     } : null,
   };
 });

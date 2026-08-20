@@ -1,5 +1,8 @@
 import type pg from 'pg';
 import { verifyCheckoutToken, type CheckoutClaims } from './security.js';
+import {
+  subscriptionCacheValues, type PaddleSubscriptionData,
+} from './paddle-subscription.js';
 
 export interface PaddleEvent {
   event_id: string;
@@ -8,22 +11,63 @@ export interface PaddleEvent {
   data: Record<string, unknown>;
 }
 
-interface PaddleItem {
-  price?: { id?: string; product_id?: string };
-}
-
-function firstPrice(data: Record<string, unknown>): { priceId: string; productId: string } {
-  const item = (data.items as PaddleItem[] | undefined)?.[0];
-  const priceId = item?.price?.id;
-  const productId = item?.price?.product_id;
-  if (!priceId || !productId) throw new Error('Paddle event has no price or product ID.');
-  return { priceId, productId };
-}
-
 function checkoutClaims(data: Record<string, unknown>, secret: string): CheckoutClaims | null {
   const customData = data.custom_data as Record<string, unknown> | null | undefined;
   const token = customData?.nosub_checkout_token;
   return typeof token === 'string' ? verifyCheckoutToken(token, secret) : null;
+}
+
+export async function upsertPaddleSubscription(
+  client: pg.PoolClient,
+  data: PaddleSubscriptionData,
+  options: { claims?: CheckoutClaims | null; eventOccurredAt?: string; authoritative?: boolean } = {},
+): Promise<void> {
+  const values = subscriptionCacheValues(data);
+  await client.query(
+    `insert into paddle_customers (paddle_customer_id, user_id, email) values ($1, $2, $3)
+     on conflict (paddle_customer_id) do update set
+       user_id = coalesce(excluded.user_id, paddle_customers.user_id),
+       email = coalesce(excluded.email, paddle_customers.email), updated_at = now()`,
+    [values.customerId, options.claims?.userId ?? null, options.claims?.email ?? null],
+  );
+  const parameters = [
+    values.subscriptionId, values.customerId, values.status, values.priceId, values.productId,
+    values.currentPeriodStartsAt, values.currentPeriodEndsAt, values.scheduledChangeAction,
+    values.scheduledChangeAt, values.canceledAt, values.trialStartedAt, values.trialEndsAt,
+    values.nextBilledAt, values.paddleUpdatedAt, options.eventOccurredAt ?? null,
+  ];
+  const freshnessGuard = options.authoritative
+    ? ''
+    : `where subscriptions.last_event_occurred_at is null
+        or excluded.last_event_occurred_at >= subscriptions.last_event_occurred_at`;
+  await client.query(
+    `insert into subscriptions (
+      paddle_subscription_id, paddle_customer_id, user_id, status, price_id, product_id,
+      current_period_starts_at, current_period_ends_at, scheduled_change_action,
+      scheduled_change_at, canceled_at, trial_started_at, trial_ends_at, next_billed_at,
+      paddle_updated_at, paddle_last_synced_at, last_event_occurred_at
+    ) values (
+      $1, $2, (select user_id from paddle_customers where paddle_customer_id = $2), $3, $4, $5,
+      $6, $7, $8, $9, $10, $11, $12, $13, $14, now(), $15
+    ) on conflict (paddle_subscription_id) do update set
+      paddle_customer_id = excluded.paddle_customer_id,
+      user_id = coalesce(excluded.user_id, subscriptions.user_id), status = excluded.status,
+      price_id = excluded.price_id, product_id = excluded.product_id,
+      current_period_starts_at = excluded.current_period_starts_at,
+      current_period_ends_at = excluded.current_period_ends_at,
+      scheduled_change_action = excluded.scheduled_change_action,
+      scheduled_change_at = excluded.scheduled_change_at,
+      canceled_at = excluded.canceled_at,
+      trial_started_at = coalesce(excluded.trial_started_at, subscriptions.trial_started_at),
+      trial_ends_at = coalesce(excluded.trial_ends_at, subscriptions.trial_ends_at),
+      next_billed_at = excluded.next_billed_at,
+      paddle_updated_at = coalesce(excluded.paddle_updated_at, subscriptions.paddle_updated_at),
+      paddle_last_synced_at = now(),
+      last_event_occurred_at = coalesce(excluded.last_event_occurred_at, subscriptions.last_event_occurred_at),
+      updated_at = now()
+    ${freshnessGuard}`,
+    parameters,
+  );
 }
 
 export async function processPaddleEvent(client: pg.PoolClient, event: PaddleEvent, checkoutSecret = ''): Promise<void> {
@@ -50,39 +94,10 @@ export async function processPaddleEvent(client: pg.PoolClient, event: PaddleEve
   }
 
   if (event.event_type.startsWith('subscription.')) {
-    const customerId = data.customer_id as string;
     const claims = checkoutSecret ? checkoutClaims(data, checkoutSecret) : null;
-    const { priceId, productId } = firstPrice(data);
-    await client.query(
-      `insert into paddle_customers (paddle_customer_id, user_id, email) values ($1, $2, $3)
-       on conflict (paddle_customer_id) do update set
-         user_id = coalesce(excluded.user_id, paddle_customers.user_id),
-         email = coalesce(excluded.email, paddle_customers.email), updated_at = now()`,
-      [customerId, claims?.userId ?? null, claims?.email ?? null],
-    );
-    const billingPeriod = data.current_billing_period as { starts_at?: string; ends_at?: string } | null;
-    const scheduledChange = data.scheduled_change as { action?: string; effective_at?: string } | null;
-    await client.query(
-      `insert into subscriptions (
-        paddle_subscription_id, paddle_customer_id, user_id, status, price_id, product_id,
-        current_period_starts_at, current_period_ends_at, scheduled_change_action,
-        scheduled_change_at, canceled_at
-      ) values (
-        $1, $2, (select user_id from paddle_customers where paddle_customer_id = $2), $3, $4, $5,
-        $6, $7, $8, $9, $10
-      ) on conflict (paddle_subscription_id) do update set
-        paddle_customer_id = excluded.paddle_customer_id,
-        user_id = coalesce(excluded.user_id, subscriptions.user_id), status = excluded.status,
-        price_id = excluded.price_id, product_id = excluded.product_id,
-        current_period_starts_at = excluded.current_period_starts_at,
-        current_period_ends_at = excluded.current_period_ends_at,
-        scheduled_change_action = excluded.scheduled_change_action,
-        scheduled_change_at = excluded.scheduled_change_at,
-        canceled_at = excluded.canceled_at, updated_at = now()`,
-      [data.id, customerId, data.status, priceId, productId, billingPeriod?.starts_at ?? null,
-        billingPeriod?.ends_at ?? null, scheduledChange?.action ?? null,
-        scheduledChange?.effective_at ?? null, data.canceled_at ?? null],
-    );
+    await upsertPaddleSubscription(client, data as PaddleSubscriptionData, {
+      claims, eventOccurredAt: event.occurred_at,
+    });
     return;
   }
 
