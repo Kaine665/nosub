@@ -43,6 +43,7 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
 
   const settings = new SettingsRepository();
   const lifecycle = new SessionLifecycle();
+  void chrome.runtime.sendMessage({ type: 'analytics:track', eventName: 'youtube_opened' }).catch(() => undefined);
 
   lifecycle.subscribe(async (event) => {
     if (event.type === 'session-started') {
@@ -69,6 +70,7 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
 
     const controller = new SessionController(player, captions);
     runtime.controller = controller;
+    let translationUsageTracked = false;
 
     // 加载持久化设置并应用
     controller.updateSettings(saved);
@@ -115,6 +117,12 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
         runtime.engine.stopLoop();
         return;
       }
+      if (state.revealLevel === 2 && !translationUsageTracked) {
+        translationUsageTracked = true;
+        void chrome.runtime.sendMessage({
+          type: 'analytics:track', eventName: 'subtitle_translation_used',
+        }).catch(() => undefined);
+      }
       if (state.isRepeating && state.activeCue) {
         runtime.engine.startLoop(state.activeCue);
       } else {
@@ -124,7 +132,7 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
 
     // 初始化字幕加载
     await controller.init(videoId);
-    void chrome.runtime.sendMessage({ type: 'analytics:track', eventName: 'nosub_started' }).catch(() => undefined);
+    void chrome.runtime.sendMessage({ type: 'analytics:track', eventName: 'listening_started' }).catch(() => undefined);
     log.info('session started:', videoId);
   }
 

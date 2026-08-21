@@ -84,10 +84,11 @@ app.post('/v1/analytics/events', { config: { rateLimit: { max: 60, timeWindow: '
     const event = parseAnalyticsEvent(jsonBody(request));
     await pool.query(
       `insert into analytics_events (
-        event_name, anonymous_id, path, referrer_host, utm_source, utm_medium, utm_campaign
-      ) values ($1, $2, $3, $4, $5, $6, $7)`,
+        event_name, anonymous_id, path, referrer_host, utm_source, utm_medium, utm_campaign,
+        app_version, environment
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [event.eventName, event.anonymousId, event.path, event.referrerHost,
-        event.utmSource, event.utmMedium, event.utmCampaign],
+        event.utmSource, event.utmMedium, event.utmCampaign, event.appVersion, event.environment],
     );
     return reply.code(202).send({ accepted: true });
   } catch (error) {

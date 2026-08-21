@@ -10,6 +10,9 @@ beforeEach(() => {
   vi.restoreAllMocks();
   for (const key of Object.keys(storage)) delete storage[key];
   (globalThis as { chrome?: typeof chrome }).chrome = {
+    runtime: {
+      getManifest: vi.fn(() => ({ version: '0.3.1' })),
+    },
     identity: {
       getAuthToken: vi.fn(async () => ({ token: 'google-token' })),
       removeCachedAuthToken: vi.fn(),
@@ -39,6 +42,7 @@ describe('Google account analytics identity link', () => {
         }), { status: 200, headers: { 'content-type': 'application/json' } });
       }
       if (url.endsWith('/v1/analytics/identity')) return new Response(null, { status: 204 });
+      if (url.endsWith('/v1/analytics/events')) return new Response(null, { status: 202 });
       if (url.endsWith('/v1/account')) {
         return new Response(JSON.stringify({
           user: { id: 'user-1', email: 'user@example.com' }, isPro: false, subscription: null,
@@ -56,5 +60,11 @@ describe('Google account analytics identity link', () => {
     expect(body.anonymous_id).toMatch(/^[0-9a-f-]{36}$/i);
     expect(body).not.toHaveProperty('user_id');
     expect(body).not.toHaveProperty('email');
+
+    const signInEvent = requests.find((request) => request.url.endsWith('/v1/analytics/events'));
+    expect(JSON.parse(String(signInEvent?.init?.body))).toMatchObject({
+      event_name: 'google_signed_in',
+      app_version: '0.3.1',
+    });
   });
 });

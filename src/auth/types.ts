@@ -21,12 +21,17 @@ export interface AccountSnapshot {
 
 export type BillingCycle = 'month' | 'quarter' | 'year';
 
+export type ProductAnalyticsEventName =
+  | 'youtube_opened'
+  | 'listening_started'
+  | 'subtitle_translation_used';
+
 export type AccountRequest =
   | { type: 'account:sign-in-google' }
   | { type: 'account:get'; refresh?: boolean }
   | { type: 'account:sign-out' }
   | { type: 'account:create-portal' }
-  | { type: 'analytics:track'; eventName: 'nosub_started' }
+  | { type: 'analytics:track'; eventName: ProductAnalyticsEventName }
   | { type: 'billing:open-upgrade'; cycle?: BillingCycle };
 
 export type AccountResponse =

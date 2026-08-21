@@ -16,13 +16,25 @@ describe('analytics input', () => {
 
   it('accepts privacy-bounded extension activity events', () => {
     const event = parseAnalyticsEvent({
-      event_name: 'nosub_started',
+      event_name: 'listening_started',
       anonymous_id: '11111111-1111-4111-8111-111111111111',
-      path: '/youtube/watch',
+      path: '/youtube/listening',
+      app_version: '0.3.1',
+      environment: 'production',
     });
     expect(event).toMatchObject({
-      eventName: 'nosub_started', path: '/youtube/watch', referrerHost: null,
+      eventName: 'listening_started', path: '/youtube/listening', referrerHost: null,
+      appVersion: '0.3.1', environment: 'production',
     });
+  });
+
+  it('rejects an unknown deployment environment', () => {
+    expect(() => parseAnalyticsEvent({
+      event_name: 'extension_installed',
+      anonymous_id: '11111111-1111-4111-8111-111111111111',
+      path: '/extension/install',
+      environment: 'staging',
+    })).toThrow('Invalid analytics environment');
   });
 
   it('rejects unsupported events and invalid visitor IDs', () => {

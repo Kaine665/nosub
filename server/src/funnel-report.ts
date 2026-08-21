@@ -2,6 +2,8 @@ import { writeFile } from 'node:fs/promises';
 import { pool } from './database.js';
 
 interface FunnelRow {
+  server_installs: string;
+  active_installations: string;
   price_page_views: string;
   price_page_visitors: string;
   registrations: string;
@@ -32,6 +34,7 @@ const from = option('--from') ?? isoDate(defaultFrom);
 const to = option('--to') ?? isoDate(now);
 const output = option('--output');
 const storeViews = Number(option('--store-views') ?? 0);
+const storeInstalls = Number(option('--store-installs') ?? 0);
 
 if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
   throw new Error('Use YYYY-MM-DD for --from and --to.');
@@ -62,6 +65,13 @@ const result = await pool.query<FunnelRow>(
      group by data->>'customer_id'
    )
    select
+     (select count(distinct anonymous_id) from analytics_events, bounds
+       where event_name = 'extension_installed' and environment = 'production'
+         and occurred_at >= starts_at and occurred_at < ends_at)::text as server_installs,
+     (select count(distinct anonymous_id) from analytics_events, bounds
+       where event_name in ('listening_started', 'nosub_started')
+         and coalesce(environment, 'production') = 'production'
+         and occurred_at >= starts_at and occurred_at < ends_at)::text as active_installations,
      (select count(*) from analytics_events, bounds
        where event_name = 'page_view' and occurred_at >= starts_at and occurred_at < ends_at)::text as price_page_views,
      (select count(distinct anonymous_id) from analytics_events, bounds
@@ -85,6 +95,8 @@ const result = await pool.query<FunnelRow>(
 );
 
 const row = result.rows[0]!;
+const serverInstalls = Number(row.server_installs);
+const activeInstallations = Number(row.active_installations);
 const visitors = Number(row.price_page_visitors);
 const registrations = Number(row.registrations);
 const trials = Number(row.trials);
@@ -100,6 +112,9 @@ const markdown = `# NoSub 转化漏斗周报
 | 阶段 | 数量 | 转化率 |
 |---|---:|---:|
 | Chrome 商店页面浏览 | ${storeViews || '未录入'} | — |
+| Chrome 商店新增安装 | ${storeInstalls || '未录入'} | — |
+| NoSub 收到安装事件 | ${serverInstalls} | ${storeInstalls ? percent(serverInstalls, storeInstalls) : '—'} 事件覆盖率 |
+| 开始精听的匿名安装 | ${activeInstallations} | ${percent(activeInstallations, serverInstalls || storeInstalls)} |
 | 价格页浏览 | ${row.price_page_views} | — |
 | 价格页匿名访客 | ${visitors} | — |
 | 新注册 | ${registrations} | ${percent(registrations, visitors || storeViews)} |
@@ -114,6 +129,9 @@ ${hasTrial ? `| 新试用 | ${trials} | ${percent(trials, registrations)} |\n` :
 
 ## 口径
 
+- Chrome 商店新增安装与 NoSub 安装事件不是同一统计口径，不要求完全相等；事件覆盖率用于发现明显漏报。
+- 安装事件以 NoSub 服务器接收时间为准，并按匿名安装 ID 去重，只统计 production 环境。
+- 开始精听兼容统计新版 \`listening_started\` 与旧版 \`nosub_started\`。
 - 价格页访客按第一方匿名 ID 去重。
 - 新付费是同一订阅的第一笔成功交易；后续成功交易计为续费。
 - 只有 Paddle 发出 \`subscription.canceled\`、订阅实际结束时才计流失。

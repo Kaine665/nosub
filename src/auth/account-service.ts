@@ -1,5 +1,6 @@
 import type { AccountSnapshot } from './types.js';
 import { getAnonymousId } from '../analytics/anonymous-identity.js';
+import { trackExtensionEvent } from '../analytics/extension-analytics.js';
 
 const API_URL = 'https://api-nosub.43-130-246-125.sslip.io';
 const SESSION_KEY = 'nosub-auth-session-v2';
@@ -49,6 +50,7 @@ export class AccountService {
     const session = await response.json() as AuthSession;
     await this.saveSession(session);
     await this.ensureAnalyticsIdentity(session).catch(() => undefined);
+    await trackExtensionEvent('google_signed_in').catch(() => undefined);
     return this.getAccount(true);
   }
 

@@ -7,6 +7,9 @@ beforeEach(() => {
   vi.resetModules();
   vi.restoreAllMocks();
   (globalThis as { chrome?: typeof chrome }).chrome = {
+    runtime: {
+      getManifest: vi.fn(() => ({ version: '0.3.1' })),
+    },
     storage: {
       local: {
         get: vi.fn(async () => ({
@@ -27,12 +30,14 @@ describe('extension analytics', () => {
     }));
 
     const { trackExtensionEvent } = await import('../../src/analytics/extension-analytics.js');
-    await trackExtensionEvent('nosub_started');
+    await trackExtensionEvent('listening_started');
 
     expect(sentBody).toEqual({
-      event_name: 'nosub_started',
+      event_name: 'listening_started',
       anonymous_id: '11111111-1111-4111-8111-111111111111',
-      path: '/youtube/watch',
+      path: '/youtube/listening',
+      app_version: '0.3.1',
+      environment: 'development',
     });
   });
 });

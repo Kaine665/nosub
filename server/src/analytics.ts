@@ -1,7 +1,10 @@
 export interface AnalyticsEventInput {
-  eventName: 'page_view' | 'extension_installed' | 'nosub_started';
+  eventName: 'page_view' | 'extension_installed' | 'nosub_started' | 'youtube_opened'
+    | 'listening_started' | 'subtitle_translation_used' | 'google_signed_in';
   anonymousId: string;
   path: string;
+  appVersion: string | null;
+  environment: 'production' | 'development' | null;
   referrerHost: string | null;
   utmSource: string | null;
   utmMedium: string | null;
@@ -9,7 +12,8 @@ export interface AnalyticsEventInput {
 }
 
 const ANALYTICS_EVENT_NAMES = new Set<AnalyticsEventInput['eventName']>([
-  'page_view', 'extension_installed', 'nosub_started',
+  'page_view', 'extension_installed', 'nosub_started', 'youtube_opened',
+  'listening_started', 'subtitle_translation_used', 'google_signed_in',
 ]);
 
 export function parseAnonymousId(value: unknown): string {
@@ -34,8 +38,15 @@ export function parseAnalyticsEvent(body: Record<string, unknown>): AnalyticsEve
   const anonymousId = parseAnonymousId(body.anonymous_id);
   const path = optionalText(body.path, 300);
   if (!path || !path.startsWith('/')) throw new Error('Invalid page path.');
+  const appVersion = optionalText(body.app_version, 40);
+  const environment = optionalText(body.environment, 20);
+  if (environment !== null && environment !== 'production' && environment !== 'development') {
+    throw new Error('Invalid analytics environment.');
+  }
   return {
     eventName, anonymousId, path,
+    appVersion,
+    environment,
     referrerHost: optionalText(body.referrer_host, 255),
     utmSource: optionalText(body.utm_source, 120),
     utmMedium: optionalText(body.utm_medium, 120),
