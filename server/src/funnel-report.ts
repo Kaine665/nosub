@@ -15,6 +15,11 @@ interface FunnelRow {
   churned: string;
 }
 
+interface InstallationDimensionRow {
+  dimension: string;
+  installations: string;
+}
+
 function option(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
@@ -94,6 +99,31 @@ const result = await pool.query<FunnelRow>(
   [from, to],
 );
 
+async function installationDistribution(column: 'country_code' | 'browser_language'):
+Promise<InstallationDimensionRow[]> {
+  const distribution = await pool.query<InstallationDimensionRow>(
+    `with first_product_event as (
+       select distinct on (anonymous_id)
+         anonymous_id, country_code, browser_language, occurred_at
+       from analytics_events
+       where event_name <> 'page_view' and coalesce(environment, 'production') = 'production'
+       order by anonymous_id, occurred_at
+     )
+     select coalesce(${column}, 'Unknown') as dimension, count(*)::text as installations
+     from first_product_event
+     where occurred_at >= $1::date and occurred_at < ($2::date + interval '1 day')
+     group by coalesce(${column}, 'Unknown')
+     order by count(*) desc, dimension`,
+    [from, to],
+  );
+  return distribution.rows;
+}
+
+const [countries, languages] = await Promise.all([
+  installationDistribution('country_code'),
+  installationDistribution('browser_language'),
+]);
+
 const row = result.rows[0]!;
 const serverInstalls = Number(row.server_installs);
 const activeInstallations = Number(row.active_installations);
@@ -104,6 +134,12 @@ const paid = Number(row.first_payments);
 const renewals = Number(row.renewals);
 const churned = Number(row.churned);
 const hasTrial = trials > 0;
+
+function distributionTable(rows: InstallationDimensionRow[], label: string): string {
+  if (rows.length === 0) return '尚无数据。';
+  return `| ${label} | 新增匿名安装 |\n|---|---:|\n${rows
+    .map((item) => `| ${item.dimension} | ${item.installations} |`).join('\n')}`;
+}
 
 const markdown = `# NoSub 转化漏斗周报
 
@@ -126,6 +162,16 @@ ${hasTrial ? `| 新试用 | ${trials} | ${percent(trials, registrations)} |\n` :
 
 - 首次付款金额：$${Number(row.first_payment_amount).toFixed(2)}
 - 续费金额：$${Number(row.renewal_amount).toFixed(2)}
+
+## 新增匿名安装来源
+
+### 国家或地区
+
+${distributionTable(countries, '国家代码')}
+
+### 浏览器语言
+
+${distributionTable(languages, '语言标签')}
 
 ## 口径
 

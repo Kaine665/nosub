@@ -38,6 +38,7 @@ describe('extension analytics', () => {
       path: '/youtube/listening',
       app_version: '0.3.1',
       environment: 'development',
+      browser_language: 'en-US',
     });
   });
 });

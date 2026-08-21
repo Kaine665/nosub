@@ -21,11 +21,22 @@ describe('analytics input', () => {
       path: '/youtube/listening',
       app_version: '0.3.1',
       environment: 'production',
+      browser_language: 'zh-CN',
     });
     expect(event).toMatchObject({
       eventName: 'listening_started', path: '/youtube/listening', referrerHost: null,
       appVersion: '0.3.1', environment: 'production',
+      browserLanguage: 'zh-CN',
     });
+  });
+
+  it('rejects a malformed browser language', () => {
+    expect(() => parseAnalyticsEvent({
+      event_name: 'youtube_opened',
+      anonymous_id: '11111111-1111-4111-8111-111111111111',
+      path: '/youtube/open',
+      browser_language: 'not_a_language',
+    })).toThrow('Invalid browser language');
   });
 
   it('rejects an unknown deployment environment', () => {

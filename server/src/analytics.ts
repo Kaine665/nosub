@@ -5,6 +5,7 @@ export interface AnalyticsEventInput {
   path: string;
   appVersion: string | null;
   environment: 'production' | 'development' | null;
+  browserLanguage: string | null;
   referrerHost: string | null;
   utmSource: string | null;
   utmMedium: string | null;
@@ -30,6 +31,16 @@ function optionalText(value: unknown, max: number): string | null {
   return value.trim().slice(0, max) || null;
 }
 
+function browserLanguage(value: unknown): string | null {
+  const language = optionalText(value, 35);
+  if (!language) return null;
+  try {
+    return new Intl.Locale(language).toString();
+  } catch {
+    throw new Error('Invalid browser language.');
+  }
+}
+
 export function parseAnalyticsEvent(body: Record<string, unknown>): AnalyticsEventInput {
   if (typeof body.event_name !== 'string' || !ANALYTICS_EVENT_NAMES.has(
     body.event_name as AnalyticsEventInput['eventName'],
@@ -47,6 +58,7 @@ export function parseAnalyticsEvent(body: Record<string, unknown>): AnalyticsEve
     eventName, anonymousId, path,
     appVersion,
     environment,
+    browserLanguage: browserLanguage(body.browser_language),
     referrerHost: optionalText(body.referrer_host, 255),
     utmSource: optionalText(body.utm_source, 120),
     utmMedium: optionalText(body.utm_medium, 120),

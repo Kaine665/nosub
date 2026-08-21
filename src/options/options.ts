@@ -8,6 +8,11 @@ const copy = {
   zh_CN: {title:'认真听懂每一句。',subtitle:'配置你的 YouTube 精听体验。',saved:'已保存',saving:'保存中…',account:'账号',accountHelp:'查看登录状态与套餐。',signedOutTitle:'尚未登录',freeNoLogin:'免费功能无需账号即可使用。',googleSignIn:'使用 Google 登录',manage:'管理订阅',refresh:'刷新状态',signOut:'退出登录',freePlan:'免费版 · 包含核心精听功能',proPlan:'Pro 已激活',signedIn:'已使用 Google 登录。',refreshed:'套餐状态已刷新。',plansTitle:'选择 Pro 套餐',plansHelp:'解锁无限字幕翻译、单词释义及未来的 Pro 功能。',secure:'Paddle 安全收款',flexible:'灵活选择',monthly:'月付',monthlyNote:'每月续费，随时可取消。',chooseMonthly:'选择月付',popular:'最受欢迎',momentum:'建立节奏',quarterly:'3 个月',quarterlyNote:'相比月付节省 20%。',chooseQuarterly:'选择 3 个月',bestValue:'最划算 · 6.5 折',commit:'坚持练习',yearly:'年付',yearlyNote:'月均价格最低。',chooseYearly:'选择年付',signInToBuy:'请先在上方使用 Google 登录，再选择套餐。Pro 权限会绑定到该账号。',activePlanNote:'Pro 套餐已激活。如需更改付款信息或取消，请点击“管理订阅”。',extension:'在 YouTube 上启用 NoSub',extensionHelp:'在支持的 YouTube 视频中显示精听控制栏。',language:'语言',interfaceLanguage:'界面语言',auto:'自动（跟随浏览器）',captionLanguage:'首选字幕语言',englishAny:'英语（不限地区）',translationLanguage:'字幕翻译为',off:'关闭',session:'精听会话',startingView:'字幕初始状态',hidden:'隐藏——先听再看',original:'原文字幕',translated:'原文 + 翻译',shortcuts:'键盘操作',shortcutHelp:'A 重听 · S 字幕 · D 下一句 · E 倍速',privacy:'隐私和在线服务',privacyText:'设置和学习状态保存在 Chrome 本地。只有使用相应功能时，才会请求释义、翻译、发音和例句。我们不会出售浏览记录，也不会将其用于广告。',dictionarySource:'词典来源',publicDictionary:'公共 API · NoSub 服务器兜底',serverDictionary:'仅使用 NoSub 服务器',services:'连接的服务',serviceList:'词典服务 · Google 翻译 · Tatoeba',onDemand:'按需请求',reloadHint:'更改会应用到新打开或重新加载的 YouTube 页面。'},
 } as const;
 
+const privacyDisclosure: Record<AppLocale, string> = {
+  en: 'Settings and learning state stay in Chrome local storage. NoSub records limited first-party product events, browser language, and an IP-derived country code without storing the raw IP in analytics. No browsing history is sold or used for advertising.',
+  zh_CN: '设置和学习状态保存在 Chrome 本地。NoSub 会记录有限的第一方产品事件、浏览器语言和由 IP 推断的国家代码，分析数据库不保存原始 IP。我们不会出售浏览记录，也不会将其用于广告。',
+};
+
 const repo = new SettingsRepository();
 const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const enabled = byId<HTMLInputElement>('enabled');
@@ -31,7 +36,7 @@ function paintLanguage(): void {
   document.documentElement.lang = lang === 'zh_CN' ? 'zh-CN' : 'en';
   document.querySelectorAll<HTMLElement>('[data-copy]').forEach((node) => {
     const key = node.dataset.copy as keyof typeof copy.en;
-    node.textContent = copy[lang][key];
+    node.textContent = key === 'privacyText' ? privacyDisclosure[lang] : copy[lang][key];
   });
   paintAccount(account);
 }

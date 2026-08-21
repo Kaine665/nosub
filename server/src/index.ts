@@ -1,4 +1,4 @@
-import Fastify, { type FastifyRequest } from 'fastify';
+import Fastify, { LogController, type FastifyRequest } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import type pg from 'pg';
 import { createSession, pool, userForAccessToken, type UserRecord } from './database.js';
@@ -7,6 +7,7 @@ import { parseAnalyticsEvent, parseAnonymousId } from './analytics.js';
 import { verifyGoogleAccessToken } from './google-auth.js';
 import { hashToken, newToken, signCheckoutToken, verifyPaddleSignature } from './security.js';
 import { allowedNoSubPriceIds, hasProAccess } from './subscription-access.js';
+import { countryCodeForIp } from './geo-location.js';
 
 interface JsonEnvelope {
   raw: string;
@@ -45,7 +46,13 @@ async function withTransaction<T>(work: (client: pg.PoolClient) => Promise<T>): 
   }
 }
 
-const app = Fastify({ logger: true, bodyLimit: 256 * 1024 });
+const app = Fastify({
+  logger: true,
+  logController: new LogController({ disableRequestLogging: true }),
+  bodyLimit: 256 * 1024,
+  // The API port is host-loopback-only; trust exactly the adjacent Nginx/Docker hop.
+  trustProxy: (_address, hop) => hop === 0,
+});
 
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (_request, body, done) => {
   try {
@@ -82,13 +89,15 @@ app.get('/health', async () => {
 app.post('/v1/analytics/events', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request, reply) => {
   try {
     const event = parseAnalyticsEvent(jsonBody(request));
+    const countryCode = countryCodeForIp(request.ip);
     await pool.query(
       `insert into analytics_events (
         event_name, anonymous_id, path, referrer_host, utm_source, utm_medium, utm_campaign,
-        app_version, environment
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        app_version, environment, country_code, browser_language
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [event.eventName, event.anonymousId, event.path, event.referrerHost,
-        event.utmSource, event.utmMedium, event.utmCampaign, event.appVersion, event.environment],
+        event.utmSource, event.utmMedium, event.utmCampaign, event.appVersion, event.environment,
+        countryCode, event.browserLanguage],
     );
     return reply.code(202).send({ accepted: true });
   } catch (error) {

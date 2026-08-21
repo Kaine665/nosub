@@ -14,6 +14,11 @@ The extension records its version and `production`/`development` environment. Th
 receive time is the authoritative event date. It never receives a YouTube video ID, title,
 subtitle text, or browsing URL; product events use fixed paths.
 
+The extension sends its BCP 47 browser language. The API resolves the source IP against a local
+GeoLite2 database and stores only the resulting two-letter country code. Raw source IP addresses
+are not stored in `analytics_events` or routine API access logs. The weekly report groups each
+new anonymous installation by its first reported country and browser language.
+
 `analytics_identities` is the explicit bridge from an anonymous installation to a signed-in
 NoSub user. Paddle subscriptions remain linked to that user, never to an IP address or guessed email.
 

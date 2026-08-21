@@ -48,7 +48,7 @@ Train your ear in a repeatable loop: listen first, check what you heard, then mo
 
 **Privacy by design**
 
-Settings stay in Chrome local storage. Dictionary, translation, pronunciation, and example-sentence requests run only when you use those features. Optional account and subscription features are disclosed in our privacy policy. No analytics SDKs, no ads, and no browsing-history sale.
+Settings stay in Chrome local storage. Dictionary, translation, pronunciation, and example-sentence requests run only when you use those features. NoSub records limited first-party product analytics under a random installation ID, including product events, browser language, and an IP-derived country code without storing the raw IP in its analytics database. No third-party analytics SDKs, no ads, and no browsing-history sale.
 
 NoSub is not affiliated with YouTube or Google.
 
@@ -105,7 +105,7 @@ NoSub 把 YouTube 变成简单、专注的英语精听训练：逐句重听、�
 
 **隐私**
 
-设置保存在 Chrome 本地。词典、翻译、发音和例句仅在使用相关功能时请求。可选账号和订阅功能已在隐私政策中披露。无广告追踪，不出售浏览记录。
+设置保存在 Chrome 本地。词典、翻译、发音和例句仅在使用相关功能时请求。NoSub 会使用随机安装 ID 记录有限的第一方产品事件、浏览器语言和由 IP 即时推断的国家代码；分析数据库不保存原始 IP。无第三方分析 SDK、无广告追踪，不出售浏览记录。
 
 NoSub 与 YouTube / Google 无关联。
 

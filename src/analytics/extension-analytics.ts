@@ -28,6 +28,7 @@ export async function trackExtensionEvent(eventName: ExtensionAnalyticsEventName
       path: EVENT_PATHS[eventName],
       app_version: chrome.runtime.getManifest().version,
       environment: import.meta.env.DEV ? 'development' : 'production',
+      browser_language: navigator.language,
     }),
   });
   if (!response.ok) throw new Error(`Analytics request failed (${response.status}).`);

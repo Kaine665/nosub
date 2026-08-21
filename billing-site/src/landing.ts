@@ -24,6 +24,7 @@ function trackPageView(): void {
       referrer_host: referrerHost || null,
       utm_source: query.get('utm_source'), utm_medium: query.get('utm_medium'),
       utm_campaign: query.get('utm_campaign'),
+      browser_language: navigator.language,
     }),
   }).catch(() => undefined);
 }
