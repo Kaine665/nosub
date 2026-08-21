@@ -30,15 +30,32 @@ describe('extension analytics', () => {
     }));
 
     const { trackExtensionEvent } = await import('../../src/analytics/extension-analytics.js');
-    await trackExtensionEvent('listening_started');
+    await trackExtensionEvent('listening_session_started', {
+      eventId: '22222222-2222-4222-8222-222222222222',
+      occurredAt: '2026-08-21T00:00:00.000Z',
+      videoSessionId: '33333333-3333-4333-8333-333333333333',
+    });
 
     expect(sentBody).toEqual({
-      event_name: 'listening_started',
+      event_id: '22222222-2222-4222-8222-222222222222',
+      event_name: 'listening_session_started',
       anonymous_id: '11111111-1111-4111-8111-111111111111',
       path: '/youtube/listening',
+      occurred_at: '2026-08-21T00:00:00.000Z',
+      video_session_id: '33333333-3333-4333-8333-333333333333',
       app_version: '0.3.1',
       environment: 'development',
       browser_language: 'en-US',
     });
+    expect(JSON.stringify(sentBody)).not.toContain('watch?v=');
+  });
+
+  it('keeps a supplied event identity stable for retries', async () => {
+    const { createExtensionAnalyticsEvent } = await import('../../src/analytics/extension-analytics.js');
+    const event = createExtensionAnalyticsEvent('extension_installed', {
+      eventId: '22222222-2222-4222-8222-222222222222',
+      occurredAt: '2026-08-21T00:00:00.000Z',
+    });
+    expect(createExtensionAnalyticsEvent(event.eventName, event)).toEqual(event);
   });
 });

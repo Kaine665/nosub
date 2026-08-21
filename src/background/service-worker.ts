@@ -11,25 +11,69 @@ import type { AccountRequest, AccountResponse } from '../auth/types.js';
 import { buildBillingUrl } from '../shared/billing.js';
 import { isAllowedBackgroundFetch, type BackgroundFetchType } from './fetch-policy.js';
 import { getAnonymousId } from '../analytics/anonymous-identity.js';
-import { trackExtensionEvent } from '../analytics/extension-analytics.js';
+import {
+  createExtensionAnalyticsEvent,
+  trackExtensionEvent,
+  type ExtensionAnalyticsEvent,
+} from '../analytics/extension-analytics.js';
 
 const log = logger.createLogger('sw');
 const accountService = new AccountService();
 const INSTALL_EVENT_PENDING_KEY = 'nosub-install-event-pending-v1';
+const PRODUCT_EVENTS_PENDING_KEY = 'nosub-product-events-pending-v1';
+const MAX_PENDING_PRODUCT_EVENTS = 200;
+let productEventQueue = Promise.resolve();
 
 void getAnonymousId().catch((error) => log.warn('anonymous identity init failed:', String(error)));
 
 async function flushPendingInstallEvent(): Promise<void> {
   const stored = await chrome.storage.local.get(INSTALL_EVENT_PENDING_KEY);
-  if (stored[INSTALL_EVENT_PENDING_KEY] !== true) return;
-  await trackExtensionEvent('extension_installed');
+  const pending = stored[INSTALL_EVENT_PENDING_KEY];
+  if (!pending) return;
+  const event: ExtensionAnalyticsEvent = pending === true
+    ? createExtensionAnalyticsEvent('extension_installed')
+    : pending as ExtensionAnalyticsEvent;
+  await trackExtensionEvent(event.eventName, event);
   await chrome.storage.local.remove(INSTALL_EVENT_PENDING_KEY);
 }
 
 void flushPendingInstallEvent().catch((error) => log.warn('install analytics retry failed:', String(error)));
+
+async function enqueueAndFlushProductEvent(event?: ExtensionAnalyticsEvent): Promise<void> {
+  productEventQueue = productEventQueue.catch(() => undefined).then(async () => {
+    const stored = await chrome.storage.local.get(PRODUCT_EVENTS_PENDING_KEY);
+    const existing = Array.isArray(stored[PRODUCT_EVENTS_PENDING_KEY])
+      ? stored[PRODUCT_EVENTS_PENDING_KEY] as ExtensionAnalyticsEvent[]
+      : [];
+    const pending = event && !existing.some((item) => item.eventId === event.eventId)
+      ? [...existing, event].slice(-MAX_PENDING_PRODUCT_EVENTS)
+      : existing;
+    await chrome.storage.local.set({ [PRODUCT_EVENTS_PENDING_KEY]: pending });
+
+    let sent = 0;
+    for (const item of pending) {
+      try {
+        await trackExtensionEvent(item.eventName, item);
+        sent += 1;
+      } catch {
+        break;
+      }
+    }
+    const remaining = pending.slice(sent);
+    if (remaining.length === 0) await chrome.storage.local.remove(PRODUCT_EVENTS_PENDING_KEY);
+    else await chrome.storage.local.set({ [PRODUCT_EVENTS_PENDING_KEY]: remaining });
+    if (event && remaining.some((item) => item.eventId === event.eventId)) {
+      throw new Error('Analytics event is queued for retry.');
+    }
+  });
+  return productEventQueue;
+}
+
+void enqueueAndFlushProductEvent().catch((error) => log.warn('product analytics retry failed:', String(error)));
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason !== 'install') return;
-  void chrome.storage.local.set({ [INSTALL_EVENT_PENDING_KEY]: true })
+  const event = createExtensionAnalyticsEvent('extension_installed');
+  void chrome.storage.local.set({ [INSTALL_EVENT_PENDING_KEY]: event })
     .then(() => flushPendingInstallEvent())
     .catch((error) => log.warn('install analytics failed:', String(error)));
 });
@@ -93,7 +137,13 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (request.type === 'analytics:track') {
-      void trackExtensionEvent(request.eventName)
+      const event = createExtensionAnalyticsEvent(request.eventName, {
+        eventId: request.eventId,
+        occurredAt: request.occurredAt,
+        videoSessionId: request.videoSessionId,
+        properties: request.properties,
+      });
+      void enqueueAndFlushProductEvent(event)
         .then(() => sendResponse({ ok: true, status: 202, body: null }))
         .catch((error) => sendResponse({
           ok: false, status: 0, body: null, error: error instanceof Error ? error.message : String(error),

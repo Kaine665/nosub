@@ -92,10 +92,13 @@ app.post('/v1/analytics/events', { config: { rateLimit: { max: 60, timeWindow: '
     const countryCode = countryCodeForIp(request.ip);
     await pool.query(
       `insert into analytics_events (
-        event_name, anonymous_id, path, referrer_host, utm_source, utm_medium, utm_campaign,
+        event_id, event_name, anonymous_id, video_session_id, occurred_at, properties,
+        path, referrer_host, utm_source, utm_medium, utm_campaign,
         app_version, environment, country_code, browser_language
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [event.eventName, event.anonymousId, event.path, event.referrerHost,
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      on conflict (event_id) do nothing`,
+      [event.eventId, event.eventName, event.anonymousId, event.videoSessionId,
+        event.occurredAt, event.properties, event.path, event.referrerHost,
         event.utmSource, event.utmMedium, event.utmCampaign, event.appVersion, event.environment,
         countryCode, event.browserLanguage],
     );

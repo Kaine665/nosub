@@ -73,7 +73,9 @@ describe('SessionLifecycle', () => {
     await lifecycle.start();
 
     expect(events).toContain('session-started');
+    expect(events).toContain('video-detected');
     expect(lifecycle.getActiveSession()?.videoId).toBe('AAAAAAAAAAA');
+    expect(lifecycle.getActiveSession()?.videoSessionId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('启动时不在 /watch 页:不创建 session,emit no-session', async () => {

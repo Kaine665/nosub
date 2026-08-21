@@ -169,11 +169,11 @@ export class ListeningUI {
   private bindControlBar(): void {
     const c = this.controller;
     const map: Record<string, () => void> = {
-      'loop-back': () => c.requestLoopBack(),
-      'toggle-reveal': () => c.toggleReveal(),
-      'next': () => c.requestNext(),
+      'loop-back': () => c.requestLoopBack('toolbar'),
+      'toggle-reveal': () => c.toggleReveal('toolbar'),
+      'next': () => c.requestNext('toolbar'),
       'toggle-rate': () => c.togglePlaybackRate(),
-      'exit-loop': () => c.requestNext(),
+      'exit-loop': () => c.requestNext('toolbar'),
       'open-upgrade': () => void chrome.runtime.sendMessage({ type: 'billing:open-upgrade' }),
       'open-options': () => void chrome.runtime.openOptionsPage(),
     };

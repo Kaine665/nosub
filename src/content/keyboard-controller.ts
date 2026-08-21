@@ -71,13 +71,13 @@ export class KeyboardController {
     // 命中目标键 → 映射到意图
     switch (key) {
       case 'a':
-        this.controller.requestLoopBack();
+        this.controller.requestLoopBack('keyboard');
         break;
       case 'd':
-        this.controller.requestNext();
+        this.controller.requestNext('keyboard');
         break;
       case 's':
-        this.controller.toggleReveal();
+        this.controller.toggleReveal('keyboard');
         break;
       case 'e':
         this.controller.togglePlaybackRate();

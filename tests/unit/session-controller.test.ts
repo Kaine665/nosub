@@ -114,6 +114,38 @@ describe('SessionController.requestNext (D 键)', () => {
   });
 });
 
+describe('SessionController core action outcomes', () => {
+  it('records keyboard and toolbar results only when an action succeeds', async () => {
+    const { controller, player } = await initReady();
+    const outcomes: Array<{ action: string; actionResult: string; inputMethod: string }> = [];
+    controller.subscribeToCoreActions((outcome) => outcomes.push(outcome));
+
+    player.tickTo(2500);
+    controller.requestLoopBack('toolbar');
+    controller.requestNext('keyboard');
+    controller.toggleReveal('toolbar');
+
+    expect(outcomes).toEqual([
+      { action: 'A', actionResult: 'repeat_current', inputMethod: 'toolbar' },
+      { action: 'D', actionResult: 'exit_loop', inputMethod: 'keyboard' },
+      { action: 'S', actionResult: 'show_original', inputMethod: 'toolbar' },
+    ]);
+  });
+
+  it('does not record S before ready or D at the final cue', async () => {
+    const { controller } = setup();
+    const outcomes: string[] = [];
+    controller.subscribeToCoreActions((outcome) => outcomes.push(outcome.actionResult));
+    controller.toggleReveal('toolbar');
+    expect(outcomes).toEqual([]);
+
+    await controller.init('vid-1');
+    controller.onTick(3500);
+    controller.requestNext('keyboard');
+    expect(outcomes).toEqual([]);
+  });
+});
+
 describe('SessionController.subscribe', () => {
   it('状态变化通知监听器', async () => {
     const { controller } = setup();

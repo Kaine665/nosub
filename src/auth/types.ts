@@ -22,16 +22,25 @@ export interface AccountSnapshot {
 export type BillingCycle = 'month' | 'quarter' | 'year';
 
 export type ProductAnalyticsEventName =
-  | 'youtube_opened'
-  | 'listening_started'
-  | 'subtitle_translation_used';
+  | 'youtube_video_opened'
+  | 'caption_load_succeeded'
+  | 'caption_load_failed'
+  | 'listening_session_started'
+  | 'core_action_completed';
 
 export type AccountRequest =
   | { type: 'account:sign-in-google' }
   | { type: 'account:get'; refresh?: boolean }
   | { type: 'account:sign-out' }
   | { type: 'account:create-portal' }
-  | { type: 'analytics:track'; eventName: ProductAnalyticsEventName }
+  | {
+    type: 'analytics:track';
+    eventName: ProductAnalyticsEventName;
+    eventId?: string;
+    occurredAt?: string;
+    videoSessionId?: string;
+    properties?: Record<string, string>;
+  }
   | { type: 'billing:open-upgrade'; cycle?: BillingCycle };
 
 export type AccountResponse =

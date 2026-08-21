@@ -32,14 +32,17 @@ export type CaptionAdapterFactory = () => CaptionAdapter;
 
 export interface ActiveSession {
   videoId: string;
+  videoSessionId: string;
+  captionsMetadataReady: boolean;
   player: PlayerAdapter;
   captions: CaptionAdapter;
 }
 
 export type SessionLifecycleListener = (
   event:
+    | { type: 'video-detected'; videoSessionId: string }
     | { type: 'session-started'; session: ActiveSession }
-    | { type: 'session-ending'; videoId: string }
+    | { type: 'session-ending'; videoId: string; videoSessionId: string }
     | { type: 'no-session' },
 ) => void;
 
@@ -127,6 +130,8 @@ export class SessionLifecycle {
    */
   private async startSession(videoId: string, gen?: number): Promise<void> {
     if (this.disposed) return;
+    const videoSessionId = crypto.randomUUID();
+    this.emit({ type: 'video-detected', videoSessionId });
     log.info('startSession:', videoId, gen !== undefined ? `gen=${gen}` : '');
 
     const player = this.playerFactory(videoId);
@@ -171,7 +176,13 @@ export class SessionLifecycle {
     mountAppContainer();
     log.debug('startSession: player + captions 就绪,容器已挂');
 
-    this.active = { videoId, player, captions };
+    this.active = {
+      videoId,
+      videoSessionId,
+      captionsMetadataReady: captionsReady,
+      player,
+      captions,
+    };
     this.emit({ type: 'session-started', session: this.active });
   }
 
@@ -179,7 +190,11 @@ export class SessionLifecycle {
   private endSession(): void {
     if (!this.active) return;
     const endingVideoId = this.active.videoId;
-    this.emit({ type: 'session-ending', videoId: endingVideoId });
+    this.emit({
+      type: 'session-ending',
+      videoId: endingVideoId,
+      videoSessionId: this.active.videoSessionId,
+    });
 
     this.active.player.dispose();
     this.active.captions.dispose();
