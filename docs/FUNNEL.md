@@ -3,8 +3,14 @@
 The production funnel combines three sources:
 
 1. Chrome Web Store page views, entered into the report with `--store-views`.
-2. First-party pricing-page `page_view` events stored in `analytics_events`.
-3. Registrations, Paddle subscription events, and completed Paddle transactions in PostgreSQL.
+2. First-party `page_view`, `extension_installed`, and `nosub_started` events stored in
+   `analytics_events` under a stable installation-scoped `anonymous_id`.
+3. Google sign-in links stored in `analytics_identities`. The server derives
+   `user_id` from a valid NoSub session; email addresses never establish the link.
+4. Registrations, Paddle subscription events, and completed Paddle transactions in PostgreSQL.
+
+The extension never sends a YouTube video ID or browsing URL with product activity.
+`nosub_started` uses the fixed path `/youtube/watch`.
 
 Generate a weekly Markdown report on the production server:
 

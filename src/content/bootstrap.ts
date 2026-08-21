@@ -124,6 +124,7 @@ if ((globalThis as { __nosub_bootstrapped?: boolean }).__nosub_bootstrapped) {
 
     // 初始化字幕加载
     await controller.init(videoId);
+    void chrome.runtime.sendMessage({ type: 'analytics:track', eventName: 'nosub_started' }).catch(() => undefined);
     log.info('session started:', videoId);
   }
 

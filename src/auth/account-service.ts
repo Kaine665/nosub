@@ -1,8 +1,10 @@
 import type { AccountSnapshot } from './types.js';
+import { getAnonymousId } from '../analytics/anonymous-identity.js';
 
 const API_URL = 'https://api-nosub.43-130-246-125.sslip.io';
 const SESSION_KEY = 'nosub-auth-session-v2';
 const ACCOUNT_CACHE_KEY = 'nosub-account-cache-v2';
+const IDENTITY_LINKS_KEY = 'nosub-analytics-identity-links-v1';
 
 interface AuthSession {
   access_token: string;
@@ -44,7 +46,9 @@ export class AccountService {
       if (response.status === 401) await chrome.identity.removeCachedAuthToken({ token: tokenResult.token });
       throw new Error(await errorMessage(response));
     }
-    await this.saveSession(await response.json() as AuthSession);
+    const session = await response.json() as AuthSession;
+    await this.saveSession(session);
+    await this.ensureAnalyticsIdentity(session).catch(() => undefined);
     return this.getAccount(true);
   }
 
@@ -67,6 +71,7 @@ export class AccountService {
 
     const session = await this.validSession();
     if (!session) return this.cache({ user: null, isPro: false, subscription: null });
+    await this.ensureAnalyticsIdentity(session).catch(() => undefined);
     const response = await fetch(`${API_URL}/v1/account`, { headers: this.headers(session.access_token) });
     if (response.status === 401) {
       await this.signOut();
@@ -136,5 +141,22 @@ export class AccountService {
   private async cache(account: AccountSnapshot): Promise<AccountSnapshot> {
     await chrome.storage.local.set({ [ACCOUNT_CACHE_KEY]: { account, cachedAt: Date.now() } });
     return account;
+  }
+
+  private async ensureAnalyticsIdentity(session: AuthSession): Promise<void> {
+    const anonymousId = await getAnonymousId();
+    const stored = await chrome.storage.local.get(IDENTITY_LINKS_KEY);
+    const links = (stored[IDENTITY_LINKS_KEY] as Record<string, string> | undefined) ?? {};
+    if (links[session.user.id] === anonymousId) return;
+
+    const response = await fetch(`${API_URL}/v1/analytics/identity`, {
+      method: 'POST',
+      headers: this.headers(session.access_token),
+      body: JSON.stringify({ anonymous_id: anonymousId }),
+    });
+    if (!response.ok) throw new Error(await errorMessage(response));
+    await chrome.storage.local.set({
+      [IDENTITY_LINKS_KEY]: { ...links, [session.user.id]: anonymousId },
+    });
   }
 }

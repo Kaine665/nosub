@@ -26,6 +26,7 @@ export type AccountRequest =
   | { type: 'account:get'; refresh?: boolean }
   | { type: 'account:sign-out' }
   | { type: 'account:create-portal' }
+  | { type: 'analytics:track'; eventName: 'nosub_started' }
   | { type: 'billing:open-upgrade'; cycle?: BillingCycle };
 
 export type AccountResponse =

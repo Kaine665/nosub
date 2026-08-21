@@ -3,7 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import type pg from 'pg';
 import { createSession, pool, userForAccessToken, type UserRecord } from './database.js';
 import { paddleApiBase, processPaddleEvent, type PaddleEvent } from './paddle.js';
-import { parseAnalyticsEvent } from './analytics.js';
+import { parseAnalyticsEvent, parseAnonymousId } from './analytics.js';
 import { verifyGoogleAccessToken } from './google-auth.js';
 import { hashToken, newToken, signCheckoutToken, verifyPaddleSignature } from './security.js';
 import { allowedNoSubPriceIds, hasProAccess } from './subscription-access.js';
@@ -92,6 +92,23 @@ app.post('/v1/analytics/events', { config: { rateLimit: { max: 60, timeWindow: '
     return reply.code(202).send({ accepted: true });
   } catch (error) {
     return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid analytics event.' });
+  }
+});
+
+app.post('/v1/analytics/identity', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
+  const token = bearer(request);
+  const user = token ? await userForAccessToken(token) : null;
+  if (!user) return reply.code(401).send({ error: 'Sign in before linking this installation.' });
+  try {
+    const anonymousId = parseAnonymousId(jsonBody(request).anonymous_id);
+    await pool.query(
+      `insert into analytics_identities (anonymous_id, user_id)
+       values ($1, $2) on conflict (anonymous_id, user_id) do nothing`,
+      [anonymousId, user.id],
+    );
+    return reply.code(204).send();
+  } catch (error) {
+    return reply.code(400).send({ error: error instanceof Error ? error.message : 'Invalid identity link.' });
   }
 });
 

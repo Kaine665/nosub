@@ -10,9 +10,29 @@ import { AccountService } from '../auth/account-service.js';
 import type { AccountRequest, AccountResponse } from '../auth/types.js';
 import { buildBillingUrl } from '../shared/billing.js';
 import { isAllowedBackgroundFetch, type BackgroundFetchType } from './fetch-policy.js';
+import { getAnonymousId } from '../analytics/anonymous-identity.js';
+import { trackExtensionEvent } from '../analytics/extension-analytics.js';
 
 const log = logger.createLogger('sw');
 const accountService = new AccountService();
+const INSTALL_EVENT_PENDING_KEY = 'nosub-install-event-pending-v1';
+
+void getAnonymousId().catch((error) => log.warn('anonymous identity init failed:', String(error)));
+
+async function flushPendingInstallEvent(): Promise<void> {
+  const stored = await chrome.storage.local.get(INSTALL_EVENT_PENDING_KEY);
+  if (stored[INSTALL_EVENT_PENDING_KEY] !== true) return;
+  await trackExtensionEvent('extension_installed');
+  await chrome.storage.local.remove(INSTALL_EVENT_PENDING_KEY);
+}
+
+void flushPendingInstallEvent().catch((error) => log.warn('install analytics retry failed:', String(error)));
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== 'install') return;
+  void chrome.storage.local.set({ [INSTALL_EVENT_PENDING_KEY]: true })
+    .then(() => flushPendingInstallEvent())
+    .catch((error) => log.warn('install analytics failed:', String(error)));
+});
 
 /** 消息类型 */
 type BackgroundRequest =
@@ -69,6 +89,15 @@ chrome.runtime.onMessage.addListener(
       })().catch((error) => {
         sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) });
       });
+      return true;
+    }
+
+    if (request.type === 'analytics:track') {
+      void trackExtensionEvent(request.eventName)
+        .then(() => sendResponse({ ok: true, status: 202, body: null }))
+        .catch((error) => sendResponse({
+          ok: false, status: 0, body: null, error: error instanceof Error ? error.message : String(error),
+        }));
       return true;
     }
 
