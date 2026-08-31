@@ -51,17 +51,27 @@ function fail(detail: string): void {
   render('Checkout could not start.', detail, true);
 }
 
-function paddleErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (!error || typeof error !== 'object') return 'Paddle did not provide an error code.';
+function paddleErrorDetails(error: unknown): { code: string; detail: string } {
+  if (error instanceof Error) return { code: '', detail: error.message };
+  if (!error || typeof error !== 'object') {
+    return { code: '', detail: 'Paddle did not provide an error code.' };
+  }
   const value = error as Record<string, unknown>;
   const nested = value.error && typeof value.error === 'object'
     ? value.error as Record<string, unknown>
     : null;
   const code = String(nested?.code ?? value.code ?? '').trim();
   const detail = String(nested?.detail ?? value.detail ?? '').trim();
-  if (code && detail) return `${code}: ${detail}`;
-  return detail || code || 'Paddle did not provide an error code.';
+  return { code, detail };
+}
+
+function paddleErrorMessage(error: unknown): string {
+  const { code, detail } = paddleErrorDetails(error);
+  if (code === 'transaction_checkout_not_enabled') {
+    return 'Paddle has not enabled live checkout for this seller account yet. Complete or await approval of the Paddle onboarding process, then try again.';
+  }
+  const reason = code && detail ? `${code}: ${detail}` : detail || code;
+  return `${reason || 'Paddle did not provide an error code.'} Check that api.paddle.com, create-checkout.paddle.com, and buy.paddle.com are reachable, then try again.`;
 }
 
 async function start(): Promise<void> {
@@ -80,7 +90,7 @@ async function start(): Promise<void> {
     if (event.name !== CheckoutEventNames.CHECKOUT_ERROR
       && event.name !== CheckoutEventNames.CHECKOUT_FAILED) return;
     paddle?.Checkout.close();
-    fail(`Paddle checkout failed. ${paddleErrorMessage(event)} Check that api.paddle.com, create-checkout.paddle.com, and buy.paddle.com are reachable, then try again.`);
+    fail(`Paddle checkout failed. ${paddleErrorMessage(event)}`);
   };
   try {
     paddle = await initializePaddle({
@@ -101,7 +111,7 @@ async function start(): Promise<void> {
       items: [{ priceId: config.prices[cycle], quantity: 1 }],
     });
   } catch (error) {
-    fail(`Paddle could not validate this plan. ${paddleErrorMessage(error)} Check that api.paddle.com is reachable, then try again.`);
+    fail(`Paddle could not validate this plan. ${paddleErrorMessage(error)}`);
     return;
   }
   paddle.Checkout.open({
