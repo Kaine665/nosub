@@ -17,6 +17,21 @@ describe('word prefetch extraction', () => {
 });
 
 describe('word prefetch scheduler', () => {
+  it('uses NoSub examples before falling back to Tatoeba', async () => {
+    const popup = new WordPopup('en');
+    const internals = popup as unknown as {
+      fetchTatoeba: (word: string) => Promise<string[]>;
+      fetchServerExamples: (word: string) => Promise<string[]>;
+      lookupExamples: (word: string) => Promise<string[]>;
+    };
+    internals.fetchServerExamples = vi.fn().mockResolvedValue(['NoSub example.']);
+    internals.fetchTatoeba = vi.fn().mockResolvedValue(['Tatoeba example.']);
+
+    await expect(internals.lookupExamples('needed')).resolves.toEqual(['NoSub example.']);
+    expect(internals.fetchTatoeba).not.toHaveBeenCalled();
+    popup.dispose();
+  });
+
   it('does not start deferred words until every priority word is complete', async () => {
     const popup = new WordPopup('en');
     const started: string[] = [];

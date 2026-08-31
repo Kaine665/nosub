@@ -18,7 +18,7 @@ const CARD = { width: 380 };
 const GAP_ABOVE_CUE = 10; // 卡片底边与字幕顶边的间距
 const VIEW_MARGIN = 8;
 const TATOEBA = 'https://tatoeba.org/en/api_v0/search';
-const DICT_SERVER = 'http://43.130.246.125:8899';
+const DICT_SERVER = 'https://api-nosub.43-130-246-125.sslip.io/dictionary';
 const YOUDAO_AUDIO = 'https://dict.youdao.com/dictvoice';
 const MAX_SENSES = 4;
 const MAX_EXAMPLES = 2;
@@ -447,10 +447,8 @@ export class WordPopup {
   private lookupExamples(word: string): Promise<string[]> {
     const cached = this.exampleCache.get(word);
     if (cached) return cached;
-    const lookup = Promise.all([
-      this.fetchTatoeba(word),
-      this.fetchServerExamples(word),
-    ]).then(([tatoeba, server]) => [...tatoeba, ...server]);
+    const lookup = this.fetchServerExamples(word)
+      .then((server) => server.length ? server : this.fetchTatoeba(word));
     this.exampleCache.set(word, lookup);
     while (this.exampleCache.size > MAX_DEFINITION_CACHE) {
       const oldest = this.exampleCache.keys().next().value as string | undefined;
@@ -606,7 +604,7 @@ export class WordPopup {
       if (!clean) return [];
       const r = await proxyFetch(
         'dict-fetch',
-        `${DICT_SERVER}/api/word/en/${encodeURIComponent(clean)}`,
+        `${DICT_SERVER}/word/en/${encodeURIComponent(clean)}`,
         4500,
       );
       if (!r.ok || !r.body) return [];
@@ -878,8 +876,8 @@ ${interFontFaces()}
     const youdao = `${YOUDAO_AUDIO}?audio=${encodeURIComponent(word)}&type=${youdaoType}`;
     if (await this.playDirect(youdao)) return;
 
-    // 自己的 dict server (HTTP)——走 SW fetch 绕开 mixed content 拦截
-    const fallback = `${DICT_SERVER}/api/audio/${encodeURIComponent(word)}?accent=${accent}`;
+    // 自己的 HTTPS 词典服务兜底
+    const fallback = `${DICT_SERVER}/audio/${encodeURIComponent(word)}?accent=${accent}`;
     if (await this.playViaSW(fallback)) return;
 
     if (btn) this.flashAudioError(btn);

@@ -246,13 +246,27 @@ class DictHandler(http.server.BaseHTTPRequestHandler):
         pass  # 安静模式
 
 
+class DictionaryHTTPServer(http.server.ThreadingHTTPServer):
+    """Keep one slow or abandoned client from blocking every dictionary lookup."""
+
+    daemon_threads = True
+    allow_reuse_address = True
+    request_queue_size = 128
+
+    def get_request(self):
+        request, client_address = super().get_request()
+        request.settimeout(10)
+        return request, client_address
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
+    p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8899)
     args = p.parse_args()
 
-    print(f"\n🚀 nosub dict server on port {args.port}")
+    print(f"\n🚀 nosub dict server on {args.host}:{args.port}")
     print(f"   EN: GET /api/word/en/matter")
     print(f"   ZH: GET /api/word/zh/matter")
     print(f"   Audio: GET /api/audio/matter?accent=us")
-    http.server.HTTPServer(("0.0.0.0", args.port), DictHandler).serve_forever()
+    DictionaryHTTPServer((args.host, args.port), DictHandler).serve_forever()

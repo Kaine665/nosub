@@ -14,11 +14,11 @@ function provider(
 }
 
 describe('DictionaryRouter', () => {
-  it('公共 API 模式优先使用公共来源', () => {
+  it('公共 API 模式仍优先使用稳定的 NoSub 词库', () => {
     const router = new DictionaryRouter('public');
-    expect(router.getProvider('en').name).toBe('dictionaryapi');
-    expect(router.getProvider('zh_CN').name).toBe('iciba-zh');
-    expect(router.getNativeProvider('zh-CN')?.name).toBe('iciba-zh');
+    expect(router.getProvider('en').name).toBe('nosub-server');
+    expect(router.getProvider('zh_CN').name).toBe('nosub-server');
+    expect(router.getNativeProvider('zh-CN')?.name).toBe('nosub-server');
     expect(router.getNativeProvider('ja')).toBeNull();
   });
 
@@ -28,17 +28,17 @@ describe('DictionaryRouter', () => {
     expect(router.getProvider('zh_CN').name).toBe('nosub-server');
   });
 
-  it('公共来源不可用时继续调用服务器兜底', async () => {
-    const publicApi = provider('public', null);
-    const serverResult = {
+  it('NoSub 词库不可用时才继续调用公共来源', async () => {
+    const server = provider('server', null);
+    const publicResult = {
       language: 'en',
       entries: [{ partOfSpeech: 'noun', definition: 'fallback' }],
     };
-    const server = provider('server', serverResult);
-    const composite = new CompositeProvider([publicApi, server]);
+    const publicApi = provider('public', publicResult);
+    const composite = new CompositeProvider([server, publicApi]);
 
-    await expect(composite.lookup('word')).resolves.toEqual(serverResult);
-    expect(publicApi.lookup).toHaveBeenCalledOnce();
+    await expect(composite.lookup('word')).resolves.toEqual(publicResult);
     expect(server.lookup).toHaveBeenCalledOnce();
+    expect(publicApi.lookup).toHaveBeenCalledOnce();
   });
 });

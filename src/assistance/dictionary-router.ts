@@ -1,9 +1,9 @@
 /**
  * DictionaryRouter —— 按语种选择词典 Provider。
  *
- * 中文释义优先级（质量优先）:
- *   金山短义项 → 有道简明 → Google 短译
- * Wiktionary / 自建 ZH 大词库噪声太多，不再作为中文主路径。
+ * 中文释义优先级（稳定性优先）:
+ *   NoSub 本地词库 → 金山短义项 → 有道简明 → Google 短译
+ * NoSub 词库由服务器统一输出并经客户端质量过滤。
  */
 
 import type { DefinitionProvider, DefinitionResult } from './definition-provider.js';
@@ -48,13 +48,12 @@ export class DictionaryRouter {
     const serverZh = new DictionaryServerProvider('zh_CN');
 
     this.enPrimary = new CompositeProvider(source === 'public'
-      ? [new DictionaryApiProvider(), serverEn]
+      ? [serverEn, new DictionaryApiProvider()]
       : [serverEn]);
 
-    // Public Chinese dictionaries are tried in quality order. The NoSub
-    // server is the final fallback, or the only source in server-only mode.
+    // Public Chinese dictionaries remain fallbacks when NoSub has no entry.
     this.zhPrimary = new CompositeProvider(source === 'public'
-      ? [new IcibaZhProvider(), new YoudaoZhProvider(), serverZh]
+      ? [serverZh, new IcibaZhProvider(), new YoudaoZhProvider()]
       : [serverZh]);
   }
 

@@ -46,7 +46,6 @@ Local preferences, authentication tokens, cached account information, and the an
 - `https://ssl.gstatic.com/*`: Required to play pronunciation audio returned by dictionary services
 - `https://translate.googleapis.com/*`: Required for translation features
 - `https://tatoeba.org/*`: Required to retrieve example sentences for word lookups
-- `http://43.130.246.125/*`: Required for the NoSub dictionary fallback service
 - `https://api-nosub.43-130-246-125.sslip.io/*`: Required for NoSub dictionary fallback, anonymous product analytics, optional account authentication, and subscription-status features
 
 Country-level IP geolocation data is provided by [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/).

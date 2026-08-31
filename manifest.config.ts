@@ -50,7 +50,6 @@ export default defineManifest({
     'https://tatoeba.org/*',
     'https://dict.youdao.com/*',
     'https://dict-mobile.iciba.com/*',
-    'http://43.130.246.125/*',
     'https://api-nosub.43-130-246-125.sslip.io/*',
   ],
   content_scripts: [

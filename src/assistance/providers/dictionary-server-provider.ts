@@ -8,7 +8,7 @@ import { logger } from '../../shared/logger.js';
 import { proxyFetch } from '../../shared/proxy-fetch.js';
 
 const log = logger.createLogger('dict-server');
-const SERVER = 'http://43.130.246.125:8899';
+const SERVER = 'https://api-nosub.43-130-246-125.sslip.io/dictionary';
 
 export class DictionaryServerProvider implements DefinitionProvider {
   readonly name = 'nosub-server';
@@ -26,7 +26,7 @@ export class DictionaryServerProvider implements DefinitionProvider {
     try {
       const resp = await proxyFetch(
         'dict-fetch',
-        `${SERVER}/api/word/${this.language}/${encodeURIComponent(clean)}`,
+        `${SERVER}/word/${this.language}/${encodeURIComponent(clean)}`,
         5500,
       );
       if (!resp.ok || !resp.body) return null;

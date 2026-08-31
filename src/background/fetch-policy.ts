@@ -1,5 +1,7 @@
 export type BackgroundFetchType = 'translate-fetch' | 'dict-fetch' | 'audio-fetch';
 
+const NOSUB_API_ORIGIN = 'https://api-nosub.43-130-246-125.sslip.io';
+
 const ALLOWED_ORIGINS: Record<BackgroundFetchType, ReadonlySet<string>> = {
   'translate-fetch': new Set([
     'https://translate.googleapis.com',
@@ -10,13 +12,13 @@ const ALLOWED_ORIGINS: Record<BackgroundFetchType, ReadonlySet<string>> = {
     'https://dict.youdao.com',
     'https://dict-mobile.iciba.com',
     'https://translate.googleapis.com',
-    'http://43.130.246.125:8899',
+    'https://api-nosub.43-130-246-125.sslip.io',
   ]),
   'audio-fetch': new Set([
     'https://api.dictionaryapi.dev',
     'https://translate.googleapis.com',
     'https://dict.youdao.com',
-    'http://43.130.246.125:8899',
+    'https://api-nosub.43-130-246-125.sslip.io',
   ]),
 };
 
@@ -25,6 +27,11 @@ export function isAllowedBackgroundFetch(type: BackgroundFetchType, rawUrl: stri
   try {
     const url = new URL(rawUrl);
     if (url.username || url.password) return false;
+    if (url.origin === NOSUB_API_ORIGIN) {
+      if (type === 'dict-fetch') return /^\/dictionary\/word\/(?:en|zh)\/[a-zA-Z%'-]+$/.test(url.pathname);
+      if (type === 'audio-fetch') return /^\/dictionary\/audio\/[a-zA-Z%'-]+$/.test(url.pathname);
+      return false;
+    }
     return ALLOWED_ORIGINS[type].has(url.origin);
   } catch {
     return false;
