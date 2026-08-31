@@ -27,8 +27,7 @@ export function renderControlBar(props: ControlBarProps): string {
   const sClass = revealLevel > 0 ? ' on' : '';
   const rateActive = isReady && playbackRate < 1;
   const rateText = rateActive ? ` ${playbackRate}×` : '';
-  const aLabel = isRepeating ? t('previous', locale) : t('repeat', locale);
-  const dLabel = isRepeating ? t('exit', locale) : t('next', locale);
+  const firstLabel = isRepeating ? t('previous', locale) : t('repeat', locale);
 
   let statusText = '';
   if (!isReady) {
@@ -42,14 +41,14 @@ export function renderControlBar(props: ControlBarProps): string {
     <div class="nosub-bar">
       <span class="nosub-brand">NOSUB</span>
       <div class="nosub-ctrls">
-        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="loop-back" title="${aLabel}">
-          <span class="key">A</span><span class="label">${aLabel}</span>
+        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="${isRepeating ? 'loop-back' : 'toggle-focused'}" title="${firstLabel}">
+          <span class="key">${isRepeating ? 'A' : 'Q'}</span><span class="label">${firstLabel}</span>
         </span>
         <span class="nosub-ctrl nosub-ctrl-clickable${sClass}" data-action="toggle-reveal" title="${t('captions', locale)}">
           <span class="key">S</span><span class="label">${t('captions', locale)} ${LEVEL_MARKS[revealLevel]}</span>
         </span>
-        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="next" title="${dLabel}">
-          <span class="key">D</span><span class="label">${dLabel}</span>
+        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="next" title="${t('next', locale)}">
+          <span class="key">D</span><span class="label">${t('next', locale)}</span>
         </span>
         <span class="nosub-ctrl nosub-ctrl-clickable${rateActive ? ' on' : ''}" data-action="toggle-rate" title="${t('speed', locale)}">
           <span class="key">E</span><span class="label">${t('speed', locale)}${rateText}</span>
@@ -59,7 +58,7 @@ export function renderControlBar(props: ControlBarProps): string {
       ${translationSuggestion ? `<div class="nosub-suggestion"><span>${t('suggestionGoogleFailed', locale)}${escapeHtml(translationSuggestion.label)}</span><button class="nosub-suggestion-btn" data-action="open-options">${t('configure', locale)}</button></div>` : ''}
       <span class="nosub-loop-indicator${isRepeating ? ' visible' : ''}">
         <span class="nosub-loop-dot"></span>${t('repeating', locale)}
-        <button class="nosub-exit-btn" data-action="exit-loop">${t('exit', locale)}</button>
+        <button class="nosub-exit-btn" data-action="exit-loop">Q · ${t('exit', locale)}</button>
       </span>
     </div>`;
 }

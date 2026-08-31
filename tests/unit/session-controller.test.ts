@@ -86,31 +86,38 @@ describe('SessionController.toggleReveal (S 键)', () => {
 
 });
 
-describe('SessionController.requestLoopBack (A 键)', () => {
-  it('normal: 当前 cue 进入循环', async () => {
+describe('SessionController.toggleFocusedListening (Q 键)', () => {
+  it('normal: 当前 cue 进入精听，再按 Q 退出', async () => {
     const { controller, player } = await initReady();
     player.tickTo(2500);
-    controller.requestLoopBack();
+    controller.toggleFocusedListening();
     expect(controller.getState().isRepeating).toBe(true);
     expect(controller.getState().activeCue?.id).toBe('c2');
+    controller.toggleFocusedListening();
+    expect(controller.getState().isRepeating).toBe(false);
   });
+});
 
-  it('repeat: 后退一个 cue', async () => {
+describe('SessionController.requestLoopBack (A 键)', () => {
+  it('normal: A 不进入精听；精听中 A 返回上一句', async () => {
     const { controller, player } = await initReady();
     player.tickTo(2500);
     controller.requestLoopBack();
+    expect(controller.getState().isRepeating).toBe(false);
+    controller.toggleFocusedListening();
     controller.requestLoopBack();
     expect(controller.getState().activeCue?.id).toBe('c1');
   });
 });
 
 describe('SessionController.requestNext (D 键)', () => {
-  it('退出循环并前进', async () => {
+  it('精听中进入下一句并保持精听', async () => {
     const { controller, player } = await initReady();
     player.tickTo(2500);
-    controller.requestLoopBack();
+    controller.toggleFocusedListening();
     controller.requestNext();
-    expect(controller.getState().isRepeating).toBe(false);
+    expect(controller.getState().isRepeating).toBe(true);
+    expect(controller.getState().activeCue?.id).toBe('c3');
   });
 });
 
@@ -121,13 +128,17 @@ describe('SessionController core action outcomes', () => {
     controller.subscribeToCoreActions((outcome) => outcomes.push(outcome));
 
     player.tickTo(2500);
+    controller.toggleFocusedListening('toolbar');
     controller.requestLoopBack('toolbar');
     controller.requestNext('keyboard');
+    controller.toggleFocusedListening('keyboard');
     controller.toggleReveal('toolbar');
 
     expect(outcomes).toEqual([
-      { action: 'A', actionResult: 'repeat_current', inputMethod: 'toolbar' },
-      { action: 'D', actionResult: 'exit_loop', inputMethod: 'keyboard' },
+      { action: 'Q', actionResult: 'enter_focused_listening', inputMethod: 'toolbar' },
+      { action: 'A', actionResult: 'previous_cue', inputMethod: 'toolbar' },
+      { action: 'D', actionResult: 'next_cue', inputMethod: 'keyboard' },
+      { action: 'Q', actionResult: 'exit_focused_listening', inputMethod: 'keyboard' },
       { action: 'S', actionResult: 'show_original', inputMethod: 'toolbar' },
     ]);
   });

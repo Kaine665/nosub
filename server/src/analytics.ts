@@ -96,6 +96,7 @@ function eventProperties(eventName: AnalyticsEventName, value: unknown): Record<
       .includes(properties.failure_reason)) throw new Error('Invalid caption failure reason.');
   } else if (eventName === 'core_action_completed') {
     const validResults: Record<string, string[]> = {
+      Q: ['enter_focused_listening', 'exit_focused_listening'],
       A: ['repeat_current', 'previous_cue'],
       S: ['show_original', 'show_translation', 'hide_subtitles'],
       D: ['next_cue', 'exit_loop'],

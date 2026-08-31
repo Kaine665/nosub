@@ -5,7 +5,7 @@ export type AppLocale = 'en' | 'zh_CN';
 const messages = {
   en: {
     loading: 'Loading…', noCaptions: 'No captions', error: 'Something went wrong',
-    repeat: 'Repeat', previous: 'Previous', captions: 'Captions', next: 'Next', speed: 'Speed', repeating: 'Repeating', exit: 'Exit',
+    repeat: 'Focus', previous: 'Previous', captions: 'Captions', next: 'Next', speed: 'Speed', repeating: 'Focused listening', exit: 'Exit focus',
     translationUnavailable: 'Translation unavailable', translationLoading: 'Translating…',
     translationNotConfigured: 'Translation is off', context: 'Context', examples: 'EXAMPLES',
     lookingUp: 'Looking up…', noDefinition: 'No definition found',
@@ -26,7 +26,7 @@ const messages = {
   },
   zh_CN: {
     loading: '加载中…', noCaptions: '无字幕', error: '出错',
-    repeat: '重听', previous: '上一句', captions: '字幕', next: '下一句', speed: '倍速', repeating: '循环中', exit: '退出循环',
+    repeat: '精听', previous: '上一句', captions: '字幕', next: '下一句', speed: '倍速', repeating: '精听中', exit: '退出精听',
     translationUnavailable: '暂无翻译', translationLoading: '翻译加载中…',
     translationNotConfigured: '翻译未开启', context: '语境', examples: '例句',
     lookingUp: '查询中…', noDefinition: '未找到释义',

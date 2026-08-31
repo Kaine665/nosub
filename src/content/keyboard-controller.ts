@@ -21,7 +21,7 @@ export interface KeyboardControllerOptions {
   isEnabled: () => boolean;
 }
 
-const TARGET_KEYS = new Set(['a', 'd', 's', 'e']);
+const TARGET_KEYS = new Set(['q', 'a', 'd', 's', 'e']);
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -70,6 +70,9 @@ export class KeyboardController {
 
     // 命中目标键 → 映射到意图
     switch (key) {
+      case 'q':
+        this.controller.toggleFocusedListening('keyboard');
+        break;
       case 'a':
         this.controller.requestLoopBack('keyboard');
         break;

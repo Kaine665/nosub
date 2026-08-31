@@ -1,1 +1,26 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>NoSub</title><link rel="stylesheet" href="./popup.css"/></head><body><main><header><div class="logo">N</div><div><strong>NoSub</strong><small id="tagline">Focused listening</small></div><span class="version">0.3.1</span></header><section class="status-card"><div><strong id="status-title">NoSub is on</strong><small id="status-copy">Ready for supported YouTube videos</small></div><label class="switch"><input id="enabled" type="checkbox"/><span></span></label></section><button class="account-card" id="account"><span class="account-copy"><strong id="account-title">Sign in to use NoSub Pro</strong><small id="account-plan">Free account</small></span><span class="account-side"><em id="account-badge">FREE</em><b id="account-action">Sign in / account</b></span></button><div class="keys"><span><kbd>A</kbd><small id="repeat">Repeat</small></span><span><kbd>S</kbd><small id="reveal">Captions</small></span><span><kbd>D</kbd><small id="next">Next</small></span><span><kbd>E</kbd><small id="speed">Speed</small></span></div><button id="settings"><span id="settings-label">Open settings</span><b>→</b></button><p id="page-hint"></p></main><script type="module" src="./popup.ts"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NoSub</title>
+  <link rel="stylesheet" href="./popup.css"/>
+</head>
+<body>
+<main>
+  <header><div class="logo">N</div><div><strong>NoSub</strong><small id="tagline">Focused listening</small></div><span class="version">0.3.2</span></header>
+  <section class="status-card"><div><strong id="status-title">NoSub is on</strong><small id="status-copy">Ready for supported YouTube videos</small></div><label class="switch"><input id="enabled" type="checkbox"/><span></span></label></section>
+  <button class="account-card" id="account"><span class="account-copy"><strong id="account-title">Sign in to use NoSub Pro</strong><small id="account-plan">Free account</small></span><span class="account-side"><em id="account-badge">FREE</em><b id="account-action">Sign in / account</b></span></button>
+  <div class="keys" style="grid-template-columns:repeat(5,1fr);gap:6px">
+    <span><kbd>Q</kbd><small id="repeat">Focus</small></span>
+    <span><kbd>A</kbd><small id="previous">Previous</small></span>
+    <span><kbd>S</kbd><small id="reveal">Captions</small></span>
+    <span><kbd>D</kbd><small id="next">Next</small></span>
+    <span><kbd>E</kbd><small id="speed">Speed</small></span>
+  </div>
+  <button id="settings"><span id="settings-label">Open settings</span><b>→</b></button>
+  <p id="page-hint"></p>
+</main>
+<script type="module" src="./popup.ts"></script>
+</body>
+</html>

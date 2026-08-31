@@ -4,7 +4,7 @@
  *
  * 核心职责:
  * - 维护 normal / repeat 两种模式
- * - 处理 A 键的两种语义(normal:进入循环当前 cue;repeat:后退一个 cue)
+ * - Q 切换精听模式，A / D 在精听中切换上一句 / 下一句
  * - 用 pendingInternalSeek 标记区分插件 seek 和用户 seek
  *   (探针证实:两者事件流完全相同,必须靠标记区分)
  *
@@ -85,31 +85,24 @@ export function createSession(
 }
 
 /**
- * 处理 A 键:"回到前一个 cue,并从其起点播放"。
- * spec §6.2,design §5.2。
- *
- * 语义分支:
- * - normal 状态:当前 cue 从头播放并进入循环(spec §4 核心路径第 2 步)
- * - repeat 状态:后退一个 cue 并继续循环(spec §4 第 3 步)
- *
- * 边界:已是第一个 cue 时仍从第一个起点播放并进入循环。
+ * Q 键切换精听模式：normal 进入当前句循环，repeat 退出循环。
  */
-export function handleAKey(
+export function handleQKey(
   session: ListeningSession,
   currentTimeMs: number,
 ): { session: ListeningSession; intent: SessionIntent } {
-  // 确定目标 cue
-  let targetCue: Cue | undefined;
-
-  if (session.mode.kind === 'normal') {
-    // normal:以当前播放位置的 cue 为准,从头循环
-    targetCue = findCurrentCue(session.cues, currentTimeMs, session.activeCueId);
-  } else {
-    // repeat:后退一个 cue
-    const currentLoopCueId = session.mode.cueId;
-    targetCue = previousCue(session.cues, currentLoopCueId);
+  if (session.mode.kind === 'repeat') {
+    return {
+      session: {
+        ...session,
+        mode: { kind: 'normal' },
+        activeCueId: session.mode.cueId,
+      },
+      intent: { type: 'exitLoop' },
+    };
   }
 
+  const targetCue = findCurrentCue(session.cues, currentTimeMs, session.activeCueId);
   if (!targetCue) {
     return { session, intent: { type: 'none' } };
   }
@@ -127,37 +120,38 @@ export function handleAKey(
 }
 
 /**
- * 处理 D 键:行动单一,不混杂。
- * - repeat → 只退出循环(停在当前句)
- * - normal → 跳到下一个 cue
- *
- * 边界:已是最后一个 cue 时不做任何事。
+ * A 键只在精听模式中返回上一句；普通播放时不进入精听。
  */
+export function handleAKey(
+  session: ListeningSession,
+): { session: ListeningSession; intent: SessionIntent } {
+  if (session.mode.kind !== 'repeat') return { session, intent: { type: 'none' } };
+  const target = previousCue(session.cues, session.mode.cueId);
+  if (!target) return { session, intent: { type: 'none' } };
+  return {
+    session: { ...session, mode: { kind: 'repeat', cueId: target.id }, activeCueId: target.id },
+    intent: { type: 'seek', targetMs: target.startMs, markInternal: true },
+  };
+}
+
+/** D 键进入下一句；精听模式中仍保持精听。 */
 export function handleDKey(
   session: ListeningSession,
 ): { session: ListeningSession; intent: SessionIntent } {
-  // repeat: 退出循环, 停在当前句
-  if (session.mode.kind === 'repeat') {
-    return {
-      session: {
-        ...session,
-        mode: { kind: 'normal' },
-        activeCueId: session.mode.cueId, // 保留当前句为 active
-      },
-      intent: { type: 'exitLoop' },
-    };
-  }
-
-  // normal: 跳到下一个 cue
-  const target = nextCue(session.cues, session.activeCueId);
+  const currentCueId = session.mode.kind === 'repeat' ? session.mode.cueId : session.activeCueId;
+  const target = nextCue(session.cues, currentCueId);
   if (!target) {
-    // 已是最后一个: 不做任何事
     return { session, intent: { type: 'none' } };
   }
 
+  const repeating = session.mode.kind === 'repeat';
   return {
-    session: { ...session, activeCueId: target.id },
-    intent: { type: 'seek', targetMs: target.startMs, markInternal: false },
+    session: {
+      ...session,
+      mode: repeating ? { kind: 'repeat', cueId: target.id } : session.mode,
+      activeCueId: target.id,
+    },
+    intent: { type: 'seek', targetMs: target.startMs, markInternal: repeating },
   };
 }
 

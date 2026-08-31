@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSession,
+  handleQKey,
   handleAKey,
   handleDKey,
   markInternalSeek,
@@ -40,59 +41,61 @@ describe('createSession', () => {
   });
 });
 
-describe('handleAKey (A 键双语义)', () => {
-  it('normal 状态:当前 cue 从头播放并进入循环', () => {
+describe('handleQKey (Q 键切换精听)', () => {
+  it('normal 状态:当前 cue 从头播放并进入精听', () => {
     const session = makeSession();
-    const { session: next, intent } = handleAKey(session, 2500); // 在 c2 内
+    const { session: next, intent } = handleQKey(session, 2500);
     expect(next.mode).toEqual({ kind: 'repeat', cueId: 'c2' });
     expect(next.activeCueId).toBe('c2');
     expect(intent).toEqual({ type: 'seek', targetMs: 2000, markInternal: true });
   });
 
-  it('repeat 状态:后退一个 cue 并继续循环', () => {
+  it('repeat 状态:退出精听并停在当前句', () => {
+    const session = makeSession({ kind: 'repeat', cueId: 'c1' });
+    const { session: next, intent } = handleQKey(session, 1500);
+    expect(next.mode).toEqual({ kind: 'normal' });
+    expect(next.activeCueId).toBe('c1');
+    expect(intent).toEqual({ type: 'exitLoop' });
+  });
+
+  it('没有当前 cue 时不进入精听', () => {
+    const session = { ...makeSession(), cues: [] };
+    const { session: next, intent } = handleQKey(session, 9999);
+    expect(next).toBe(session);
+    expect(intent).toEqual({ type: 'none' });
+  });
+});
+
+describe('handleAKey (A 键上一句)', () => {
+  it('normal 状态不进入精听', () => {
+    const session = makeSession();
+    const { session: next, intent } = handleAKey(session);
+    expect(next).toBe(session);
+    expect(intent).toEqual({ type: 'none' });
+  });
+
+  it('repeat 状态:后退一个 cue 并继续精听', () => {
     const session = makeSession({ kind: 'repeat', cueId: 'c2' });
-    const { session: next, intent } = handleAKey(session, 2500);
+    const { session: next, intent } = handleAKey(session);
     expect(next.mode).toEqual({ kind: 'repeat', cueId: 'c1' });
     expect(intent).toEqual({ type: 'seek', targetMs: 1000, markInternal: true });
   });
 
-  it('repeat 状态已是第一个 cue:仍从第一个起点播放并循环(spec §6.2 边界)', () => {
+  it('repeat 状态已是第一句:重新播放第一句', () => {
     const session = makeSession({ kind: 'repeat', cueId: 'c0' });
-    const { session: next, intent } = handleAKey(session, 500);
+    const { session: next, intent } = handleAKey(session);
     expect(next.mode).toEqual({ kind: 'repeat', cueId: 'c0' });
     expect(intent).toEqual({ type: 'seek', targetMs: 0, markInternal: true });
   });
-
-  it('间隙时以最近激活 cue 为基准', () => {
-    const session = makeSession();
-    const { session: next } = handleAKey({ ...session, activeCueId: 'c1' }, 1500); // 间隙(假设)
-    // findCurrentCue 在间隙保留 active=c1
-    expect(next.activeCueId).toBe('c1');
-    expect(next.mode.kind).toBe('repeat');
-  });
-
-  it('连续按 A:normal → 循环 c2 → 后退到 c1 → 后退到 c0', () => {
-    let session = makeSession();
-    // 第一次:在 c2 内按 A
-    session = handleAKey(session, 2500).session;
-    expect(session.mode).toEqual({ kind: 'repeat', cueId: 'c2' });
-    // 第二次:repeat 状态按 A,后退到 c1
-    session = handleAKey(session, 2000).session;
-    expect(session.mode).toEqual({ kind: 'repeat', cueId: 'c1' });
-    // 第三次:再后退到 c0
-    session = handleAKey(session, 1000).session;
-    expect(session.mode).toEqual({ kind: 'repeat', cueId: 'c0' });
-  });
 });
 
-describe('handleDKey (D 键:行动单一,不混杂)', () => {
-  it('repeat 状态: 只退出循环, 不前进(停在当前句)', () => {
+describe('handleDKey (D 键下一句)', () => {
+  it('repeat 状态:进入下一句并继续精听', () => {
     const session = makeSession({ kind: 'repeat', cueId: 'c1' });
     const { session: next, intent } = handleDKey(session);
-    expect(next.mode.kind).toBe('normal');
-    // 不前进: activeCueId 保留
-    expect(next.activeCueId).toBe('c1');
-    expect(intent).toEqual({ type: 'exitLoop' });
+    expect(next.mode).toEqual({ kind: 'repeat', cueId: 'c2' });
+    expect(next.activeCueId).toBe('c2');
+    expect(intent).toEqual({ type: 'seek', targetMs: 2000, markInternal: true });
   });
 
   it('normal 状态: 前进到下一个 cue', () => {

@@ -37,6 +37,25 @@ describe('analytics input', () => {
     });
   });
 
+  it('accepts Q as the focused-listening mode toggle', () => {
+    const event = parseAnalyticsEvent({
+      event_name: 'core_action_completed',
+      anonymous_id: '11111111-1111-4111-8111-111111111111',
+      video_session_id: '33333333-3333-4333-8333-333333333333',
+      path: '/youtube/action',
+      properties: {
+        action: 'Q',
+        action_result: 'enter_focused_listening',
+        input_method: 'keyboard',
+      },
+    });
+    expect(event.properties).toEqual({
+      action: 'Q',
+      action_result: 'enter_focused_listening',
+      input_method: 'keyboard',
+    });
+  });
+
   it('rejects video events without a session ID and rejects unknown properties', () => {
     expect(() => parseAnalyticsEvent({
       event_name: 'youtube_video_opened',

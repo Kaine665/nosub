@@ -21,6 +21,7 @@ import {
   createSession,
   handleAKey,
   handleDKey,
+  handleQKey,
   handleMediaChange,
   handleUserSeek,
   isUserSeek,
@@ -70,6 +71,8 @@ export type ViewStateListener = (state: ViewState) => void;
 
 export type AnalyticsInputMethod = 'keyboard' | 'toolbar';
 export type CoreActionResult =
+  | 'enter_focused_listening'
+  | 'exit_focused_listening'
   | 'repeat_current'
   | 'previous_cue'
   | 'show_original'
@@ -79,7 +82,7 @@ export type CoreActionResult =
   | 'exit_loop';
 
 export interface CoreActionOutcome {
-  action: 'A' | 'S' | 'D';
+  action: 'Q' | 'A' | 'S' | 'D';
   actionResult: CoreActionResult;
   inputMethod: AnalyticsInputMethod;
 }
@@ -213,13 +216,31 @@ export class SessionController {
     }
   }
 
-  /** 意图:循环回退(对应 A 键) */
-  requestLoopBack(inputMethod: AnalyticsInputMethod = 'keyboard'): void {
+  /** Q 键：进入或退出精听模式。 */
+  toggleFocusedListening(inputMethod: AnalyticsInputMethod = 'keyboard'): void {
     if (!this.session) return;
     const wasRepeating = this.session.mode.kind === 'repeat';
-    const repeatedCueId = this.session.mode.kind === 'repeat' ? this.session.mode.cueId : null;
     const now = this.player.getCurrentTimeMs();
-    const { session, intent } = handleAKey(this.session, now);
+    const { session, intent } = handleQKey(this.session, now);
+    if (intent.type === 'none') return;
+    this.session = session;
+    if (intent.type === 'seek' && typeof intent.targetMs === 'number') {
+      this.session = markInternalSeek(this.session, intent.targetMs, Date.now());
+    }
+    this.emitAction({
+      action: 'Q',
+      actionResult: wasRepeating ? 'exit_focused_listening' : 'enter_focused_listening',
+      inputMethod,
+    });
+    this.emit(this.deriveState());
+  }
+
+  /** A 键：精听中返回上一句。 */
+  requestLoopBack(inputMethod: AnalyticsInputMethod = 'keyboard'): void {
+    if (!this.session) return;
+    const repeatedCueId = this.session.mode.kind === 'repeat' ? this.session.mode.cueId : null;
+    const { session, intent } = handleAKey(this.session);
+    if (intent.type === 'none') return;
     this.session = session;
     // 每次进入循环或切到前一句时, 重置挡位为隐藏(0)
     if (this.session.mode.kind === 'repeat') {
@@ -229,7 +250,7 @@ export class SessionController {
       this.session = markInternalSeek(this.session, intent.targetMs, Date.now());
       this.emitAction({
         action: 'A',
-        actionResult: wasRepeating && repeatedCueId !== this.session.activeCueId
+        actionResult: repeatedCueId !== this.session.activeCueId
           ? 'previous_cue'
           : 'repeat_current',
         inputMethod,
@@ -239,7 +260,7 @@ export class SessionController {
     this.emit(this.deriveState());
   }
 
-  /** 意图:下一句(对应 D 键) */
+  /** D 键：下一句；精听中切句后继续保持精听。 */
   requestNext(inputMethod: AnalyticsInputMethod = 'keyboard'): void {
     if (!this.session) return;
     const { session, intent } = handleDKey(this.session);
@@ -255,8 +276,6 @@ export class SessionController {
     }
     if (intent.type === 'seek') {
       this.emitAction({ action: 'D', actionResult: 'next_cue', inputMethod });
-    } else if (intent.type === 'exitLoop') {
-      this.emitAction({ action: 'D', actionResult: 'exit_loop', inputMethod });
     }
     this.emit(this.deriveState());
   }

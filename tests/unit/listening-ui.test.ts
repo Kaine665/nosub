@@ -18,6 +18,7 @@ function makeMockController(state: Partial<ViewState>) {
       (mockController as unknown as { _emit: (s: ViewState) => void })._emit = cb;
       return () => {};
     }),
+    toggleFocusedListening: vi.fn(),
     requestNext: vi.fn(),
     requestLoopBack: vi.fn(),
     toggleReveal: vi.fn(),
@@ -57,9 +58,9 @@ describe('控制栏', () => {
     }
   });
 
-  it('正常播放显示 Repeat / Captions / Next / Speed', () => {
+  it('正常播放显示 Focus / Captions / Next / Speed', () => {
     const { shadow } = setup({ status: 'ready', isRepeating: false });
-    expect(shadow.textContent).toContain('Repeat');
+    expect(shadow.textContent).toContain('Focus');
     expect(shadow.textContent).toContain('Captions');
     expect(shadow.textContent).toContain('Next');
     expect(shadow.textContent).toContain('Speed');
@@ -160,7 +161,7 @@ describe('字幕揭示挡位', () => {
 
   it('简体中文界面显示中文控制文案', () => {
     const { shadow } = setup({ status: 'ready', isRepeating: false, interfaceLanguage: 'zh_CN' });
-    expect(shadow.textContent).toContain('重听');
+    expect(shadow.textContent).toContain('精听');
     expect(shadow.textContent).toContain('字幕');
     expect(shadow.textContent).toContain('下一句');
     expect(shadow.textContent).toContain('倍速');
@@ -170,6 +171,12 @@ describe('字幕揭示挡位', () => {
 // ========== 循环 ==========
 
 describe('循环模式', () => {
+  it('普通状态点击 Q 精听调用 toggleFocusedListening', () => {
+    const { shadow } = setup({ status: 'ready', revealLevel: 0, isRepeating: false });
+    (shadow.querySelector('[data-action="toggle-focused"]') as HTMLElement)?.click();
+    expect(mockController.toggleFocusedListening).toHaveBeenCalledTimes(1);
+  });
+
   it('循环时显示循环指示器', () => {
     const { shadow } = setup({
       status: 'ready', revealLevel: 1, isRepeating: true,
@@ -178,13 +185,13 @@ describe('循环模式', () => {
     expect(shadow.querySelector('.nosub-loop-indicator.visible')).toBeTruthy();
   });
 
-  it('退出循环按钮调用 requestNext', () => {
+  it('退出精听按钮调用 toggleFocusedListening', () => {
     const { shadow } = setup({
       status: 'ready', revealLevel: 2, isRepeating: true,
       activeCue: { id: 'c1', startMs: 0, endMs: 100, text: 'x' },
     });
     (shadow.querySelector('[data-action="exit-loop"]') as HTMLElement)?.click();
-    expect(mockController.requestNext).toHaveBeenCalledTimes(1);
+    expect(mockController.toggleFocusedListening).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -7,6 +7,7 @@ import type { SessionController } from '../../src/content/session-controller.js'
 
 function makeMockController() {
   return {
+    toggleFocusedListening: vi.fn(),
     requestLoopBack: vi.fn(),
     requestNext: vi.fn(),
     toggleReveal: vi.fn(),
@@ -45,6 +46,15 @@ beforeEach(() => {
 });
 
 describe('KeyboardController 按键映射', () => {
+  it('Q 键 → toggleFocusedListening', () => {
+    const mock = makeMockController();
+    const kc = new KeyboardController(mock as unknown as SessionController, { isEnabled: () => true });
+    kc.attach();
+    pressKey({ key: 'q' });
+    expect(mock.toggleFocusedListening).toHaveBeenCalledTimes(1);
+    kc.detach();
+  });
+
   it('A 键 → requestLoopBack', () => {
     const mock = makeMockController();
     const kc = new KeyboardController(mock as unknown as SessionController, { isEnabled: () => true });
@@ -81,12 +91,12 @@ describe('KeyboardController 按键映射', () => {
     kc.detach();
   });
 
-  it('大小写不敏感(A 和 a 等价)', () => {
+  it('大小写不敏感(Q 和 q 等价)', () => {
     const mock = makeMockController();
     const kc = new KeyboardController(mock as unknown as SessionController, { isEnabled: () => true });
     kc.attach();
-    pressKey({ key: 'A' }); // shift+a 的 key 是 'A'
-    expect(mock.requestLoopBack).toHaveBeenCalledTimes(1);
+    pressKey({ key: 'Q' });
+    expect(mock.toggleFocusedListening).toHaveBeenCalledTimes(1);
     kc.detach();
   });
 
