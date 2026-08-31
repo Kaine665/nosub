@@ -1,6 +1,6 @@
 {
   "name": "nosub",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "YouTube listening practice — repeat sentences, reveal captions, slow down, and look up words.",
   "type": "module",

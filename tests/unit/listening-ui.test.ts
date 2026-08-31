@@ -58,18 +58,18 @@ describe('控制栏', () => {
     }
   });
 
-  it('正常播放显示 Focus / Captions / Next / Speed', () => {
+  it('正常播放常驻 Q / A / S / D / E 五个控件', () => {
     const { shadow } = setup({ status: 'ready', isRepeating: false });
-    expect(shadow.textContent).toContain('Focus');
-    expect(shadow.textContent).toContain('Captions');
-    expect(shadow.textContent).toContain('Next');
-    expect(shadow.textContent).toContain('Speed');
+    expect([...shadow.querySelectorAll('.nosub-ctrl .key')].map((el) => el.textContent)).toEqual([
+      'Q', 'A', 'S', 'D', 'E',
+    ]);
   });
 
-  it('循环中动态显示 Previous 和 Exit', () => {
+  it('精听中仍常驻 Q / A / S / D / E 五个控件', () => {
     const { shadow } = setup({ status: 'ready', isRepeating: true });
-    expect(shadow.textContent).toContain('Previous');
-    expect(shadow.textContent).toContain('Exit');
+    expect([...shadow.querySelectorAll('.nosub-ctrl .key')].map((el) => el.textContent)).toEqual([
+      'Q', 'A', 'S', 'D', 'E',
+    ]);
   });
 
   it('revealLevel=0 时 S 显示 ○', () => {
@@ -177,20 +177,21 @@ describe('循环模式', () => {
     expect(mockController.toggleFocusedListening).toHaveBeenCalledTimes(1);
   });
 
-  it('循环时显示循环指示器', () => {
+  it('精听时只高亮 Q，不显示独立精听指示器', () => {
     const { shadow } = setup({
       status: 'ready', revealLevel: 1, isRepeating: true,
       activeCue: { id: 'c1', startMs: 0, endMs: 100, text: 'x' },
     });
-    expect(shadow.querySelector('.nosub-loop-indicator.visible')).toBeTruthy();
+    expect(shadow.querySelector('[data-action="toggle-focused"]')?.classList.contains('focused')).toBe(true);
+    expect(shadow.querySelector('.nosub-loop-indicator')).toBeNull();
   });
 
-  it('退出精听按钮调用 toggleFocusedListening', () => {
+  it('精听中点击 Q 调用 toggleFocusedListening 退出', () => {
     const { shadow } = setup({
       status: 'ready', revealLevel: 2, isRepeating: true,
       activeCue: { id: 'c1', startMs: 0, endMs: 100, text: 'x' },
     });
-    (shadow.querySelector('[data-action="exit-loop"]') as HTMLElement)?.click();
+    (shadow.querySelector('[data-action="toggle-focused"]') as HTMLElement)?.click();
     expect(mockController.toggleFocusedListening).toHaveBeenCalledTimes(1);
   });
 });

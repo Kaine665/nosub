@@ -128,7 +128,7 @@ export class ListeningUI {
       el.addEventListener('click', (e) => this.handleWordClick(e));
     });
 
-    // 控制栏可点击 (含 exit-loop, 不再单独绑)
+    // 控制栏可点击
     this.bindControlBar();
   }
 
@@ -174,7 +174,6 @@ export class ListeningUI {
       'toggle-reveal': () => c.toggleReveal('toolbar'),
       'next': () => c.requestNext('toolbar'),
       'toggle-rate': () => c.togglePlaybackRate(),
-      'exit-loop': () => c.toggleFocusedListening('toolbar'),
       'open-upgrade': () => void chrome.runtime.sendMessage({ type: 'billing:open-upgrade' }),
       'open-options': () => void chrome.runtime.openOptionsPage(),
     };

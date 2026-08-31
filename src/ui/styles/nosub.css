@@ -177,18 +177,16 @@
   color: rgba(255,255,255,0.55);
 }
 
-/* ——— 循环指示器 ——— */
-.nosub-loop-indicator {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  height: 100%;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
+/* 精听中沿用原“精听中”的红色，只高亮 Q 控件 */
+.nosub-ctrl.focused {
   background: rgba(220,50,50,0.35);
-  border-left: 1px solid rgba(255,255,255,0.1);
+}
+.nosub-ctrl.focused .key {
+  color: #fff;
+  background: rgba(255,255,255,0.25);
+}
+.nosub-ctrl.focused .label {
+  color: #fff;
 }
 .nosub-suggestion {
   display: flex; align-items: center; gap: 10px;
@@ -206,35 +204,7 @@
   font: 600 12px/1 system-ui, sans-serif;
   white-space: nowrap;
 }
-.nosub-loop-indicator.visible {
-  display: flex;
-}
-.nosub-loop-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ff4d4d;
-  animation: nosub-pulse 1.2s ease-in-out infinite;
-}
-.nosub-exit-btn {
-  font: 12px/1 "SF Pro Display", system-ui, sans-serif;
-  color: rgba(255,255,255,0.8);
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 5px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.nosub-exit-btn:hover {
-  background: rgba(255,255,255,0.22);
-}
-
 @keyframes nosub-fade-in {
   from { opacity: 0.6; transform: translateY(4px); }
   to   { opacity: 1;   transform: translateY(0); }
-}
-@keyframes nosub-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
 }

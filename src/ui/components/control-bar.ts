@@ -27,7 +27,6 @@ export function renderControlBar(props: ControlBarProps): string {
   const sClass = revealLevel > 0 ? ' on' : '';
   const rateActive = isReady && playbackRate < 1;
   const rateText = rateActive ? ` ${playbackRate}×` : '';
-  const firstLabel = isRepeating ? t('previous', locale) : t('repeat', locale);
 
   let statusText = '';
   if (!isReady) {
@@ -41,8 +40,11 @@ export function renderControlBar(props: ControlBarProps): string {
     <div class="nosub-bar">
       <span class="nosub-brand">NOSUB</span>
       <div class="nosub-ctrls">
-        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="${isRepeating ? 'loop-back' : 'toggle-focused'}" title="${firstLabel}">
-          <span class="key">${isRepeating ? 'A' : 'Q'}</span><span class="label">${firstLabel}</span>
+        <span class="nosub-ctrl nosub-ctrl-clickable${isRepeating ? ' focused' : ''}" data-action="toggle-focused" title="${isRepeating ? t('exit', locale) : t('repeat', locale)}">
+          <span class="key">Q</span><span class="label">${t('repeat', locale)}</span>
+        </span>
+        <span class="nosub-ctrl nosub-ctrl-clickable" data-action="loop-back" title="${t('previous', locale)}">
+          <span class="key">A</span><span class="label">${t('previous', locale)}</span>
         </span>
         <span class="nosub-ctrl nosub-ctrl-clickable${sClass}" data-action="toggle-reveal" title="${t('captions', locale)}">
           <span class="key">S</span><span class="label">${t('captions', locale)} ${LEVEL_MARKS[revealLevel]}</span>
@@ -56,9 +58,5 @@ export function renderControlBar(props: ControlBarProps): string {
         ${statusText ? `<span class="nosub-ctrl"><span class="label" title="${escapeHtml(errorMessage ?? statusText)}">${escapeHtml(statusText)}</span></span>` : ''}
       </div>
       ${translationSuggestion ? `<div class="nosub-suggestion"><span>${t('suggestionGoogleFailed', locale)}${escapeHtml(translationSuggestion.label)}</span><button class="nosub-suggestion-btn" data-action="open-options">${t('configure', locale)}</button></div>` : ''}
-      <span class="nosub-loop-indicator${isRepeating ? ' visible' : ''}">
-        <span class="nosub-loop-dot"></span>${t('repeating', locale)}
-        <button class="nosub-exit-btn" data-action="exit-loop">Q · ${t('exit', locale)}</button>
-      </span>
     </div>`;
 }
