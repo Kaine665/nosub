@@ -1,4 +1,9 @@
-import { initializePaddle, type Paddle } from '@paddle/paddle-js';
+import {
+  CheckoutEventNames,
+  initializePaddle,
+  type Paddle,
+  type PaddleEventData,
+} from '@paddle/paddle-js';
 import './style.css';
 
 type BillingCycle = 'month' | 'quarter' | 'year';
@@ -22,19 +27,41 @@ const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('App root not found.');
 const appRoot = app;
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function render(title: string, detail: string, error = false): void {
   appRoot.innerHTML = `
     <main class="checkout-bridge">
       <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">N</span><span>NoSub</span></a>
       <div class="checkout-loader${error ? ' error' : ''}" aria-hidden="true"></div>
-      <h1>${title}</h1>
-      <p>${detail}</p>
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(detail)}</p>
       ${error ? '<a class="hero-cta" href="./">Back to NoSub</a>' : ''}
     </main>`;
 }
 
 function fail(detail: string): void {
   render('Checkout could not start.', detail, true);
+}
+
+function paddleErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (!error || typeof error !== 'object') return 'Paddle did not provide an error code.';
+  const value = error as Record<string, unknown>;
+  const nested = value.error && typeof value.error === 'object'
+    ? value.error as Record<string, unknown>
+    : null;
+  const code = String(nested?.code ?? value.code ?? '').trim();
+  const detail = String(nested?.detail ?? value.detail ?? '').trim();
+  if (code && detail) return `${code}: ${detail}`;
+  return detail || code || 'Paddle did not provide an error code.';
 }
 
 async function start(): Promise<void> {
@@ -47,17 +74,34 @@ async function start(): Promise<void> {
     return;
   }
 
-  const safeEmail = email.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-  render('Opening secure checkout…', `Your selected plan will be linked to ${safeEmail}.`);
+  render('Opening secure checkout…', `Your selected plan will be linked to ${email}.`);
   let paddle: Paddle | undefined;
+  const checkoutError = (event: PaddleEventData): void => {
+    if (event.name !== CheckoutEventNames.CHECKOUT_ERROR
+      && event.name !== CheckoutEventNames.CHECKOUT_FAILED) return;
+    paddle?.Checkout.close();
+    fail(`Paddle checkout failed. ${paddleErrorMessage(event)} Check that api.paddle.com, create-checkout.paddle.com, and buy.paddle.com are reachable, then try again.`);
+  };
   try {
-    paddle = await initializePaddle({ environment: config.environment, token: config.token });
+    paddle = await initializePaddle({
+      environment: config.environment,
+      token: config.token,
+      eventCallback: checkoutError,
+    });
   } catch {
     fail('Paddle could not be loaded. Check your connection and try again from the extension settings.');
     return;
   }
   if (!paddle) {
     fail('Paddle could not be loaded. Check your connection and try again from the extension settings.');
+    return;
+  }
+  try {
+    await paddle.PricePreview({
+      items: [{ priceId: config.prices[cycle], quantity: 1 }],
+    });
+  } catch (error) {
+    fail(`Paddle could not validate this plan. ${paddleErrorMessage(error)} Check that api.paddle.com is reachable, then try again.`);
     return;
   }
   paddle.Checkout.open({
